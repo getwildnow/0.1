@@ -1,7 +1,7 @@
 # PRIME CARE - Project Overview
 
 ## What We're Building
-**Company:** Global Care  
+**Company:** getwild  
 **Product:** PRIME CARE - Single point of contact for ALL health needs
 
 One app for everything: Insurance + AI Doctor + Data Wallet
