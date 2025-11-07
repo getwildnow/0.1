@@ -2,9 +2,11 @@
 
 ## What We're Building
 **Company:** getwild  
-**Product:** PRIME CARE - Single point of contact for ALL health needs
+**Product:** one Single point of contact for ALL health needs
 
-One app for everything: Insurance + AI Doctor + Data Wallet
+- **Most customer-friendly insurance on the planet**
+- **Advanced health & longevity optimization**
+- **Personal 24/7 doctor + access to every hospital nationwide**
 
 ---
 
@@ -24,19 +26,26 @@ One app for everything: Insurance + AI Doctor + Data Wallet
 - Full coverage of everything
 - 59-minute claim processing
 - Direct payment to hospitals
+- no deductables, no copayments
+- you can go to every doctor you want (in network/out network, natiionwide coverage)
+- dental and vision included
 - Cancel anytime like Netflix
 
-### 2. AI Doctor System
-- 24/7 AI medical guidance
-- Multi-specialty support
-- Real doctors when needed
-- Prescriptions & labs
-
-### 3. Data Wallet
+### 2. Health Optimization
 - All health data in one place
-- Wearable integration (Oura, Whoop)
+- Wearable integration (get free Oura, Whoop)
+- get free blood tests every quater.
 - Social media data scraping
-- "Login with Data Wallet" for other apps
+- blood test results analyzed by our AI and made easy and understandable
+- one yearly free Dexa Scan
+- get your gym membership and other sports activities payed by us.
+
+### 3. integrated Health system
+- 24/7 AI medical guidance, with chatbot
+- 24/7 telehealth for free
+- Multi-specialty support
+- Real doctors when needed everywhere you are.
+- Prescriptions & labs
 
 ---
 
