@@ -1,0 +1,19 @@
+// Example configuration file
+// Copy this to .env.local and fill in your values
+
+export const exampleConfig = {
+  // Supabase
+  NEXT_PUBLIC_SUPABASE_URL: 'your_supabase_project_url',
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: 'your_supabase_anon_key',
+  SUPABASE_SERVICE_ROLE_KEY: 'your_supabase_service_role_key',
+
+  // Stripe
+  STRIPE_SECRET_KEY: 'your_stripe_secret_key',
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'your_stripe_publishable_key',
+
+  // OpenAI (for future features)
+  OPENAI_API_KEY: 'your_openai_api_key',
+
+  // Get Wild Admin Password
+  ADMIN_PASSWORD: 'Getwild45real!?'
+};

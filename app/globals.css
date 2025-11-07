@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand-cream: #FFFAF4;
+    --brand-gray: #989795;
+    --brand-charcoal: #333333;
+    --brand-dark: #1B1D1A;
+    --brand-black: #11120D;
+    --brand-yellow: #F8D794;
+    --brand-green: #809076;
+    --brand-teal: #243132;
+  }
+
+  body {
+    @apply text-brand-dark bg-brand-cream;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold text-brand-black;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-brand-green text-white px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition-all duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-brand-teal text-white px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition-all duration-200;
+  }
+
+  .card {
+    @apply bg-white rounded-lg shadow-lg p-6 border border-brand-gray/10;
+  }
+}

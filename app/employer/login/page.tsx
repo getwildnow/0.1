@@ -1,0 +1,124 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
+
+export default function EmployerLogin() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isLogin, setIsLogin] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+  const supabase = createClient()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    try {
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+        if (error) throw error
+        router.push('/employer/dashboard')
+      } else {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        })
+        if (error) throw error
+        setError('Check your email to confirm your account')
+      }
+    } catch (error: any) {
+      setError(error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-brand-cream flex items-center justify-center px-4">
+      <div className="max-w-md w-full">
+        <div className="text-center mb-8">
+          <Link href="/" className="text-3xl font-bold text-brand-black">Get wild.</Link>
+          <h1 className="mt-6 text-2xl font-bold text-brand-black">
+            {isLogin ? 'Sign in to your employer account' : 'Create your employer account'}
+          </h1>
+        </div>
+
+        <form onSubmit={handleSubmit} className="card">
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-brand-dark mb-1">
+                Work Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-brand-gray/30 placeholder-brand-gray text-brand-dark focus:outline-none focus:ring-brand-green focus:border-brand-green focus:z-10 sm:text-sm"
+                placeholder="you@company.com"
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-brand-dark mb-1">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete={isLogin ? 'current-password' : 'new-password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-brand-gray/30 placeholder-brand-gray text-brand-dark focus:outline-none focus:ring-brand-green focus:border-brand-green focus:z-10 sm:text-sm"
+                placeholder="Password"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="mt-4 text-sm text-red-600 text-center">
+              {error}
+            </div>
+          )}
+
+          <div className="mt-6">
+            <button
+              type="submit"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-brand-green hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-green disabled:opacity-50"
+            >
+              {loading ? 'Loading...' : (isLogin ? 'Sign in' : 'Sign up')}
+            </button>
+          </div>
+
+          <div className="mt-4 text-center text-sm">
+            <button
+              type="button"
+              onClick={() => setIsLogin(!isLogin)}
+              className="font-medium text-brand-green hover:text-brand-green/80"
+            >
+              {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+            </button>
+          </div>
+        </form>
+
+        <p className="mt-4 text-center text-sm text-brand-gray">
+          For companies with 20+ employees
+        </p>
+      </div>
+    </div>
+  )
+}
