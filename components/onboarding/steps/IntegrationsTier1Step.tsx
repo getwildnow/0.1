@@ -3,6 +3,7 @@
 import { useState } from "react";
 import OAuthButton from "../OAuthButton";
 import Button from "../Button";
+import { initiateOAuth } from "@/lib/oauth/providers";
 
 interface IntegrationsTier1StepProps {
   onNext: (data: any) => void;
@@ -16,11 +17,34 @@ export default function IntegrationsTier1Step({ onNext, onBack }: IntegrationsTi
     instagram: false,
     linkedin: false,
   });
+  const [connecting, setConnecting] = useState<string | null>(null);
 
-  const handleConnect = (provider: string) => {
-    // In production, this would initiate OAuth flow
-    // For now, just mark as connected
-    setConnected((prev) => ({ ...prev, [provider]: true }));
+  const handleConnect = async (provider: string) => {
+    try {
+      setConnecting(provider);
+      
+      // Map internal names to OAuth provider names
+      const providerMap: Record<string, keyof typeof import("@/lib/oauth/providers").OAUTH_PROVIDERS> = {
+        appleHealth: "google", // Apple Health uses HealthKit, but we'll use Google Fit as alternative
+        googleWorkspace: "google",
+        instagram: "instagram",
+        linkedin: "linkedin",
+      };
+
+      const oauthProvider = providerMap[provider];
+      if (oauthProvider) {
+        await initiateOAuth(oauthProvider);
+        // OAuth will redirect, so we don't update state here
+      } else {
+        // For Apple Health, we might need a different approach
+        setConnected((prev) => ({ ...prev, [provider]: true }));
+      }
+    } catch (error) {
+      console.error("Error connecting:", error);
+      alert("Failed to connect. Please try again.");
+    } finally {
+      setConnecting(null);
+    }
   };
 
   const canProceed =
@@ -44,6 +68,9 @@ export default function IntegrationsTier1Step({ onNext, onBack }: IntegrationsTi
           connected={connected.appleHealth}
           required
         />
+        {connecting === "appleHealth" && (
+          <div className="text-sm text-blue-600 ml-12">Connecting...</div>
+        )}
         <div className="text-sm text-gray-600 ml-12">
           Syncs your activity, heart rate, sleep, and fitness data
         </div>

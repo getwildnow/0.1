@@ -13,11 +13,13 @@ import IntegrationsTier1Step from "@/components/onboarding/steps/IntegrationsTie
 import IntegrationsTier2Step from "@/components/onboarding/steps/IntegrationsTier2Step";
 import WearableStep from "@/components/onboarding/steps/WearableStep";
 import MentalHealthStep from "@/components/onboarding/steps/MentalHealthStep";
+import FinancialStep from "@/components/onboarding/steps/FinancialStep";
 import ConsentsStep from "@/components/onboarding/steps/ConsentsStep";
 import CompleteStep from "@/components/onboarding/steps/CompleteStep";
 import { createClient } from "@/lib/supabase/client";
+import { saveOnboardingData } from "@/lib/onboarding/save-data";
 
-const TOTAL_STEPS = 12;
+const TOTAL_STEPS = 13;
 
 export default function OnboardingPage({ params }: { params: { token: string } }) {
   const router = useRouter();
@@ -78,15 +80,28 @@ export default function OnboardingPage({ params }: { params: { token: string } }
   };
 
   const handleNext = async (stepData?: any) => {
-    if (stepData) {
-      await saveProgress(currentStep, stepData);
-    }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert("Please log in first");
+        return;
+      }
 
-    if (currentStep < TOTAL_STEPS) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      // Complete onboarding
-      await completeOnboarding();
+      // Save step data to database
+      if (stepData) {
+        await saveOnboardingData(user.id, currentStep, stepData);
+        await saveProgress(currentStep, stepData);
+      }
+
+      if (currentStep < TOTAL_STEPS) {
+        setCurrentStep(currentStep + 1);
+      } else {
+        // Complete onboarding
+        await completeOnboarding();
+      }
+    } catch (error) {
+      console.error("Error in handleNext:", error);
+      alert("An error occurred. Please try again.");
     }
   };
 
@@ -151,9 +166,12 @@ export default function OnboardingPage({ params }: { params: { token: string } }
         <MentalHealthStep onNext={(data) => handleNext(data)} onBack={handleBack} />
       )}
       {currentStep === 11 && (
+        <FinancialStep onNext={(data) => handleNext(data)} onBack={handleBack} />
+      )}
+      {currentStep === 12 && (
         <ConsentsStep onNext={(data) => handleNext(data)} onBack={handleBack} />
       )}
-      {currentStep === 12 && <CompleteStep onComplete={(password) => handleNext({ password })} />}
+      {currentStep === 13 && <CompleteStep onComplete={(password) => handleNext({ password })} />}
     </StepContainer>
   );
 }

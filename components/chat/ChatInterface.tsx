@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Send } from "lucide-react";
 import Button from "../onboarding/Button";
+import { createClient } from "@/lib/supabase/client";
 
 interface Message {
   id: string;
@@ -12,21 +13,64 @@ interface Message {
 }
 
 export default function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      role: "assistant",
-      message: "Hi! I'm your personal health companion. How can I help you today?",
-      timestamp: new Date().toISOString(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    loadChatHistory();
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const loadChatHistory = async () => {
+    try {
+      const response = await fetch("/api/chat");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.messages && data.messages.length > 0) {
+          setMessages(data.messages);
+        } else {
+          // Add welcome message if no history
+          setMessages([
+            {
+              id: "1",
+              role: "assistant",
+              message: "Hi! I'm your personal health companion. How can I help you today?",
+              timestamp: new Date().toISOString(),
+            },
+          ]);
+        }
+      } else {
+        // Fallback welcome message
+        setMessages([
+          {
+            id: "1",
+            role: "assistant",
+            message: "Hi! I'm your personal health companion. How can I help you today?",
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error("Error loading chat history:", error);
+      setMessages([
+        {
+          id: "1",
+          role: "assistant",
+          message: "Hi! I'm your personal health companion. How can I help you today?",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    } finally {
+      setInitialized(true);
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -39,21 +83,41 @@ export default function ChatInterface() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const currentInput = input;
     setInput("");
     setLoading(true);
 
-    // Simulate AI response (Phase 2: Replace with OpenAI API)
-    setTimeout(() => {
-      const aiMessage: Message = {
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: currentInput }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const aiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          message: data.message,
+          timestamp: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, aiMessage]);
+      } else {
+        throw new Error("Failed to get response");
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+      const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        message:
-          "I'm learning about you! Check back soon for personalized health insights and support.",
+        message: "Sorry, I encountered an error. Please try again.",
         timestamp: new Date().toISOString(),
       };
-      setMessages((prev) => [...prev, aiMessage]);
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -76,7 +140,12 @@ export default function ChatInterface() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
-        {messages.map((msg, index) => (
+        {!initialized && (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-gray-500">Loading chat...</div>
+          </div>
+        )}
+        {initialized && messages.map((msg, index) => (
           <div
             key={msg.id}
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-fade-in`}
@@ -96,7 +165,7 @@ export default function ChatInterface() {
             </div>
           </div>
         ))}
-        {loading && (
+        {initialized && loading && (
           <div className="flex justify-start">
             <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
               <div className="flex gap-1">

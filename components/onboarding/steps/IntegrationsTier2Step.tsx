@@ -3,6 +3,7 @@
 import { useState } from "react";
 import OAuthButton from "../OAuthButton";
 import Button from "../Button";
+import { initiateOAuth } from "@/lib/oauth/providers";
 
 interface IntegrationsTier2StepProps {
   onNext: (data: any) => void;
@@ -16,9 +17,32 @@ export default function IntegrationsTier2Step({ onNext, onBack }: IntegrationsTi
     spotify: false,
     twitter: false,
   });
+  const [connecting, setConnecting] = useState<string | null>(null);
 
-  const handleConnect = (provider: string) => {
-    setConnected((prev) => ({ ...prev, [provider]: true }));
+  const handleConnect = async (provider: string) => {
+    try {
+      setConnecting(provider);
+      
+      const providerMap: Record<string, keyof typeof import("@/lib/oauth/providers").OAUTH_PROVIDERS> = {
+        strava: "strava",
+        spotify: "spotify",
+        twitter: "twitter",
+        myfitnesspal: "google", // MyFitnessPal might need different approach
+      };
+
+      const oauthProvider = providerMap[provider];
+      if (oauthProvider && oauthProvider !== "myfitnesspal") {
+        await initiateOAuth(oauthProvider);
+      } else {
+        // For providers without OAuth or different flow
+        setConnected((prev) => ({ ...prev, [provider]: true }));
+      }
+    } catch (error) {
+      console.error("Error connecting:", error);
+      alert("Failed to connect. Please try again.");
+    } finally {
+      setConnecting(null);
+    }
   };
 
   return (

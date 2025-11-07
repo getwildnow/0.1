@@ -3,6 +3,9 @@
 import { useState } from "react";
 import FileUpload from "../FileUpload";
 import Button from "../Button";
+import { uploadDocument } from "@/lib/storage";
+import { createClient } from "@/lib/supabase/client";
+import { validateImage } from "@/lib/validations/file-upload";
 
 interface IdentityStepProps {
   onNext: (data: any) => void;
@@ -13,10 +16,62 @@ export default function IdentityStep({ onNext, onBack }: IdentityStepProps) {
   const [idFront, setIdFront] = useState<File | null>(null);
   const [idBack, setIdBack] = useState<File | null>(null);
   const [selfie, setSelfie] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const supabase = createClient();
 
-  const handleSubmit = () => {
-    if (idFront && idBack && selfie) {
-      onNext({ idFront, idBack, selfie });
+  const handleSubmit = async () => {
+    if (!idFront || !idBack || !selfie) return;
+
+    // Validate files
+    const validations = [
+      validateImage(idFront),
+      validateImage(idBack),
+      validateImage(selfie),
+    ];
+
+    const invalidFile = validations.find((v) => !v.valid);
+    if (invalidFile) {
+      alert(invalidFile.error);
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert("Please log in first");
+        return;
+      }
+
+      // Upload files
+      const [idFrontUrl, idBackUrl, selfieUrl] = await Promise.all([
+        uploadDocument(idFront, user.id, "id_front"),
+        uploadDocument(idBack, user.id, "id_back"),
+        uploadDocument(selfie, user.id, "selfie"),
+      ]);
+
+      if (idFrontUrl && idBackUrl && selfieUrl) {
+        // Save document URLs to database
+        await supabase.from("documents").insert([
+          { user_id: user.id, doc_type: "id_front", file_url: idFrontUrl },
+          { user_id: user.id, doc_type: "id_back", file_url: idBackUrl },
+          { user_id: user.id, doc_type: "selfie", file_url: selfieUrl },
+        ]);
+
+        // Update profile photo
+        await supabase
+          .from("profiles")
+          .upsert({ user_id: user.id, profile_photo_url: selfieUrl });
+
+        onNext({ idFrontUrl, idBackUrl, selfieUrl });
+      } else {
+        alert("Failed to upload files. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error uploading files:", error);
+      alert("Error uploading files. Please try again.");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -64,10 +119,10 @@ export default function IdentityStep({ onNext, onBack }: IdentityStepProps) {
         </Button>
         <Button
           onClick={handleSubmit}
-          disabled={!idFront || !idBack || !selfie}
+          disabled={!idFront || !idBack || !selfie || uploading}
           className="flex-1"
         >
-          Continue
+          {uploading ? "Uploading..." : "Continue"}
         </Button>
       </div>
     </div>
