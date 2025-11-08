@@ -79,8 +79,10 @@ export async function POST(request: NextRequest) {
       .single();
     
     if (profile) {
-      sessionId = profile.user_id;
-      logger.info('Found session ID from database', { sessionId, veriffSessionId });
+      sessionId = (profile as { user_id?: string } | null)?.user_id || null;
+      if (sessionId) {
+        logger.info('Found session ID from database', { sessionId, veriffSessionId });
+      }
     }
   }
 
