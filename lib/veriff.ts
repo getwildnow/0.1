@@ -78,13 +78,17 @@ class VeriffClient {
   }
 
   async createSession(callbackUrl: string, returnUrl: string, metadata?: Record<string, string>): Promise<VeriffSession> {
-    const payload: any = {
-      verification: {
-        callback: callbackUrl,
-        person: {},
-        vendorData: metadata?.session_id || undefined,
-      },
+    const verification: any = {
+      callback: callbackUrl,
+      person: {},
     };
+
+    // Only include vendorData if it exists
+    if (metadata?.session_id) {
+      verification.vendorData = metadata.session_id;
+    }
+
+    const payload = { verification };
 
     const response = await this.request('/v1/sessions', {
       method: 'POST',
