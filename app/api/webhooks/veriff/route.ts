@@ -181,11 +181,11 @@ export async function POST(request: NextRequest) {
     status: profileData.verification_status
   });
 
-  // Save to user_profiles
-  const { error: profileError } = await supabase.from('user_profiles').upsert({
-    user_id: sessionId,
-    ...profileData,
-  });
+          // Save to user_profiles
+          const { error: profileError } = await supabase.from('user_profiles').upsert({
+            user_id: sessionId,
+            ...profileData,
+          } as any);
   
   if (profileError) {
     logger.dbError('user_profiles', 'upsert', profileError);
