@@ -17,7 +17,17 @@ export async function POST(request: Request) {
     
     logger.info('Creating Veriff session', { userId: user.id });
 
-    const origin = request.headers.get('origin') || 'http://localhost:3000';
+    // Get the base URL - prioritize RENDER_EXTERNAL_URL for production
+    const baseUrl = process.env.RENDER_EXTERNAL_URL 
+      || process.env.VERCEL_URL 
+      || request.headers.get('origin') 
+      || request.headers.get('host') 
+      || 'http://localhost:3000';
+    
+    // Ensure we have https:// for production URLs
+    const origin = baseUrl.startsWith('http') 
+      ? baseUrl 
+      : `https://${baseUrl}`;
 
     // Create Veriff verification session
     const callbackUrl = `${origin}/api/webhooks/veriff`;

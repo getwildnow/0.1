@@ -1,5 +1,5 @@
 import { veriff } from '@/lib/veriff';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/service';
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { logger } from '@/lib/logger';
@@ -25,7 +25,8 @@ export async function POST(request: Request) {
   
   logger.info('Veriff webhook signature verified');
 
-  const supabase = await createClient();
+  // Use service role client to bypass RLS (webhooks have no user session)
+  const supabase = createServiceRoleClient();
   const event = JSON.parse(body);
 
   // Veriff webhook events: verification.status.changed

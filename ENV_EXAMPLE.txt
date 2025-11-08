@@ -60,10 +60,15 @@ VERIFF_API_URL=https://stationapi.veriff.com
 OPENAI_API_KEY=sk-proj-1234567890abcdefghijklmnopqrstuvwxyz
 
 # ============================================
-# OPTIONAL: PORT CONFIGURATION
+# OPTIONAL: DEPLOYMENT CONFIGURATION
 # ============================================
-# Only needed if you want to run on a different port
-# Default: 3000
+# RENDER_EXTERNAL_URL: Set automatically by Render in production
+#   Example: https://your-app-name.onrender.com
+#   Used for Veriff webhook callbacks
+#   You don't need to set this manually - Render sets it
+#
+# PORT: Only needed if you want to run on a different port locally
+#   Default: 3000
 
 # PORT=3001
 
