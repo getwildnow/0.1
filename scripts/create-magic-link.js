@@ -47,12 +47,31 @@ async function createMagicLink() {
   );
 
   try {
+    // First, check if user exists
+    const { data: existingUser } = await supabase.auth.admin.listUsers();
+    const userExists = existingUser?.users?.some(u => u.email === email);
+
+    if (!userExists) {
+      // Create the user first
+      const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+        email: email,
+        email_confirm: true,
+      });
+
+      if (createError) {
+        console.error('❌ Error creating user:', createError.message);
+        process.exit(1);
+      }
+
+      console.log('✅ User created:', email);
+    }
+
     // Generate magic link using admin API
     const { data, error } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
       email: email,
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'https://zero-1-nyha.onrender.com'}/onboard/verify`
+        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'https://zero-1-nyha.onrender.com'}/auth/callback`
       }
     });
 
