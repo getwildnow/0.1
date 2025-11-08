@@ -78,19 +78,17 @@ class VeriffClient {
   }
 
   async createSession(callbackUrl: string, returnUrl: string, metadata?: Record<string, string>): Promise<VeriffSession> {
+    const payload: any = {
+      verification: {
+        callback: callbackUrl,
+        person: {},
+        vendorData: metadata?.session_id || undefined,
+      },
+    };
+
     const response = await this.request('/v1/sessions', {
       method: 'POST',
-      body: JSON.stringify({
-        verification: {
-          callback: callbackUrl,
-          person: {
-            // Optional: pre-fill if available
-          },
-        },
-        returnUrl: returnUrl,
-        lang: 'en',
-        ...metadata && { metadata },
-      }),
+      body: JSON.stringify(payload),
     });
 
     return {
