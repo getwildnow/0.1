@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     }
 
     logger.apiSuccess('POST', '/api/identity/create-session');
-    return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: session.url, sessionId });
   } catch (error: any) {
     logger.apiError('POST', '/api/identity/create-session', error);
     return NextResponse.json(

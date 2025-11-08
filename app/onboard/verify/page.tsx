@@ -24,8 +24,12 @@ export default function VerifyPage() {
         throw new Error(errorData.error || "Failed to create verification session");
       }
 
-      const { url } = await response.json();
-      if (url) {
+      const { url, sessionId } = await response.json();
+      
+      if (url && sessionId) {
+        // Store session ID in localStorage so we can retrieve it after Veriff redirect
+        localStorage.setItem('veriff_session_id', sessionId);
+        
         // Redirect to Veriff
         window.location.href = url;
       }

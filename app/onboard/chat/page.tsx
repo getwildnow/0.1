@@ -17,8 +17,8 @@ function ChatPageContent() {
   }, []);
 
   const checkVerification = async () => {
-    // Get session ID from URL
-    const sessionId = searchParams.get("session");
+    // Get session ID from localStorage (stored before redirecting to Veriff)
+    const sessionId = localStorage.getItem('veriff_session_id');
     
     if (!sessionId) {
       // No session, redirect to start
@@ -26,15 +26,10 @@ function ChatPageContent() {
       return;
     }
 
-    // Check if just returned from Veriff
-    const justVerified = searchParams.get("verified") === "true";
-    
-    if (justVerified) {
-      // Wait for webhook to process
-      setIsVerifying(true);
-      await pollForVerification(sessionId);
-      setIsVerifying(false);
-    }
+    // Wait for webhook to process verification
+    setIsVerifying(true);
+    await pollForVerification(sessionId);
+    setIsVerifying(false);
     
     // Ready to chat
     setIsReady(true);
