@@ -1,21 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function Home() {
   const router = useRouter();
   const [envError, setEnvError] = useState(false);
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   
-  // Check if environment variables are available
-  useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      setEnvError(true);
+  // Initialize Supabase client lazily
+  const getSupabase = () => {
+    if (envError) return null;
+    if (!supabaseRef.current) {
+      try {
+        supabaseRef.current = createClient();
+      } catch (error) {
+        console.error("Failed to create Supabase client:", error);
+        setEnvError(true);
+        return null;
+      }
     }
-  }, []);
+    return supabaseRef.current;
+  };
   
-  const supabase = envError ? null : createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,6 +34,7 @@ export default function Home() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    const supabase = getSupabase();
     if (!supabase) {
       setError("Application not configured. Please contact support.");
       return;
@@ -99,6 +108,7 @@ export default function Home() {
       return;
     }
     
+    const supabase = getSupabase();
     if (!supabase) {
       setError("Application not configured. Please contact support.");
       return;
