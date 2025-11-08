@@ -29,14 +29,17 @@ export async function POST(request: Request) {
   const supabase = createServiceRoleClient();
   const event = JSON.parse(body);
 
-  // Veriff webhook events: verification.status.changed
-  if (event.type === 'verification.status.changed') {
+  // Veriff webhook events: verification.status.changed or FINISHED
+  // Veriff can send either 'action' or 'type' depending on webhook version
+  const eventType = event.action || event.type;
+  
+  if (eventType === 'verification.status.changed' || eventType === 'FINISHED') {
     const verification = event.verification;
-    const userId = event.metadata?.user_id;
+    const userId = verification.vendorData; // sessionId stored in vendorData
 
     if (!userId) {
-      logger.error('Veriff webhook missing user_id in metadata', null, { verificationId: verification.id });
-      return NextResponse.json({ error: 'No user ID in metadata' }, { status: 400 });
+      logger.error('Veriff webhook missing vendorData (sessionId)', null, { verificationId: verification.id });
+      return NextResponse.json({ error: 'No session ID in vendorData' }, { status: 400 });
     }
 
     logger.info('Processing verification for user', { userId, verificationId: verification.id, status: verification.status });
@@ -76,7 +79,7 @@ export async function POST(request: Request) {
     // Extract all data
     const profileData = {
       veriff_verification_session_id: verification.id,
-      verification_status: verification.status === 'success' ? 'verified' : verification.status,
+      verification_status: verification.status === 'approved' ? 'verified' : verification.status,
       first_name: person.firstName || null,
       last_name: person.lastName || null,
       dob: dob,
@@ -90,7 +93,7 @@ export async function POST(request: Request) {
       postal_code: zipCode || null,
       country: country || person.nationality || null,
       veriff_data: fullVerification as any,
-      verified_at: verification.status === 'success' ? new Date().toISOString() : null,
+      verified_at: verification.status === 'approved' ? new Date().toISOString() : null,
     };
 
     // Save to user_profiles
@@ -107,7 +110,7 @@ export async function POST(request: Request) {
     logger.info('User profile updated', { userId, status: profileData.verification_status });
 
     // Update conversation state if verified
-    if (verification.status === 'success') {
+    if (verification.status === 'approved') {
       const { error: convError } = await supabase.from('onboarding_conversations').upsert({
         user_id: userId,
         veriff_verified: true,
