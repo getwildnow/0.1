@@ -1,12 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function Home() {
   const router = useRouter();
-  const supabase = createClient();
+  const [envError, setEnvError] = useState(false);
+  
+  // Check if environment variables are available
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      setEnvError(true);
+    }
+  }, []);
+  
+  const supabase = envError ? null : createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,6 +25,12 @@ export default function Home() {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!supabase) {
+      setError("Application not configured. Please contact support.");
+      return;
+    }
+    
     setLoading(true);
     setError("");
     setMessage("");
@@ -83,6 +98,11 @@ export default function Home() {
       setError("Please enter your email");
       return;
     }
+    
+    if (!supabase) {
+      setError("Application not configured. Please contact support.");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -117,6 +137,15 @@ export default function Home() {
           <h1 className="text-4xl font-bold text-gray-900">getwild Prime Care</h1>
           <p className="mt-2 text-lg text-gray-600">Employee Onboarding System</p>
         </div>
+
+        {envError && (
+          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6 mb-6">
+            <h3 className="text-yellow-800 font-bold mb-2">⚠️ Configuration Required</h3>
+            <p className="text-yellow-700 text-sm">
+              Environment variables not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Render dashboard.
+            </p>
+          </div>
+        )}
 
         {/* Auth Card */}
         <div className="bg-white rounded-lg shadow-xl p-8">

@@ -5,7 +5,11 @@ function getEnvVar(key: string, required: boolean = true): string {
   const value = process.env[key];
   
   if (!value && required) {
-    throw new Error(`Missing required environment variable: ${key}`);
+    // Only throw in development or server-side
+    if (typeof window === 'undefined' || process.env.NODE_ENV === 'development') {
+      console.error(`Missing required environment variable: ${key}`);
+    }
+    return '';
   }
   
   return value || '';
