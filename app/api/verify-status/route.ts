@@ -1,41 +1,41 @@
+/**
+ * Check verification status
+ * Uses service role client to bypass RLS
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/service';
-import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const sessionId = searchParams.get('sessionId');
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const userId = searchParams.get('userId');
 
-  if (!sessionId) {
-    return NextResponse.json({ error: 'Session ID required' }, { status: 400 });
+  if (!userId) {
+    return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
   }
 
   try {
-    // Use service role client to bypass RLS
     const supabase = createServiceRoleClient();
     
     const { data: profile, error } = await supabase
       .from('user_profiles')
       .select('verification_status')
-      .eq('user_id', sessionId)
+      .eq('user_id', userId)
       .single();
 
     if (error) {
-      // Profile might not exist yet (webhook hasn't processed)
-      return NextResponse.json({ 
-        verification_status: 'pending',
-        exists: false 
-      });
+      logger.dbError('user_profiles', 'select', error);
+      return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
-    return NextResponse.json({ 
-      verification_status: profile?.verification_status || 'pending',
-      exists: true
+    return NextResponse.json({
+      verified: profile?.verification_status === 'verified',
+      status: profile?.verification_status || 'pending',
     });
-  } catch (error: any) {
-    return NextResponse.json({ 
-      error: error.message,
-      verification_status: 'pending' 
-    }, { status: 500 });
+  } catch (error) {
+    logger.error('Error checking verification status', error instanceof Error ? error : null);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 

@@ -1,5 +1,7 @@
-// Veriff API Client
-// Veriff uses REST API - no official Node SDK, so we'll use fetch
+/**
+ * Veriff API client
+ */
+
 import crypto from 'crypto';
 import { env } from './env';
 
@@ -16,6 +18,8 @@ export interface VeriffPerson {
   idNumber?: string;
   nationality?: string;
   gender?: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface VeriffAddress {
@@ -29,7 +33,7 @@ export interface VeriffAddress {
 
 export interface VeriffVerification {
   id: string;
-  status: 'success' | 'failed' | 'abandoned' | 'declined';
+  status: 'success' | 'failed' | 'abandoned' | 'declined' | 'approved';
   code?: number;
   person?: VeriffPerson;
   document?: {
@@ -46,14 +50,17 @@ export interface VeriffVerification {
     gender?: string;
     idNumber?: string;
   };
+  vendorData?: string;
 }
 
 class VeriffClient {
   private apiKey: string;
   private baseUrl: string;
+  private apiSecret: string;
 
   constructor() {
     this.apiKey = env.veriff.apiKey;
+    this.apiSecret = env.veriff.apiSecret;
     this.baseUrl = env.veriff.apiUrl;
   }
 
@@ -77,14 +84,12 @@ class VeriffClient {
     return response.json();
   }
 
-  async createSession(callbackUrl: string, returnUrl: string, metadata?: Record<string, string>): Promise<VeriffSession> {
+  async createSession(callbackUrl: string, metadata?: Record<string, string>): Promise<VeriffSession> {
     const verification: any = {
       callback: callbackUrl,
-      // Don't send empty person object - causes "invalid parameters" error
-      person: {},
     };
 
-    // Only include vendorData if it exists
+    // Only include vendorData if it exists (for sessionId tracking)
     if (metadata?.session_id) {
       verification.vendorData = metadata.session_id;
     }
@@ -93,16 +98,10 @@ class VeriffClient {
       verification
     };
 
-    console.log('[Veriff] Creating session with payload:', JSON.stringify(payload, null, 2));
-    console.log('[Veriff] Callback URL (for webhook):', callbackUrl);
-    console.log('[Veriff] Return URL (configured in dashboard):', returnUrl);
-
     const response = await this.request('/v1/sessions', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-
-    console.log('[Veriff] Session created. Response:', JSON.stringify(response, null, 2));
 
     return {
       id: response.verification.id,
@@ -119,10 +118,8 @@ class VeriffClient {
   verifyWebhookSignature(payload: string, signature: string): boolean {
     // Veriff webhook signature verification
     // Signature is HMAC SHA256 of payload with API secret
-    const secret = env.veriff.apiSecret;
-    
     const expectedSignature = crypto
-      .createHmac('sha256', secret)
+      .createHmac('sha256', this.apiSecret)
       .update(payload)
       .digest('hex');
     

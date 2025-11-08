@@ -1,75 +1,94 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 export default function VerifyPage() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const supabase = createClient();
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    createVerificationSession();
-  }, []);
+    // Check if user is authenticated
+    const checkAuth = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        // Not authenticated - redirect to home (which will show error)
+        router.push('/?error=not_authenticated');
+        return;
+      }
+    };
 
-  const createVerificationSession = async () => {
+    checkAuth();
+  }, [router]);
+
+  const handleStartVerification = async () => {
+    setLoading(true);
+    setError(null);
+
     try {
-      // Create Veriff session directly (no auth needed)
-      const response = await fetch("/api/identity/create-session", {
-        method: "POST",
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        setError('Please authenticate first');
+        setLoading(false);
+        return;
+      }
+
+      // Create Veriff session
+      const response = await fetch('/api/identity/create-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create verification session");
+        throw new Error(errorData.error || 'Failed to create verification session');
       }
 
-      const { url, sessionId } = await response.json();
-      
-      if (url && sessionId) {
-        // Store session ID in localStorage so we can retrieve it after Veriff redirect
-        localStorage.setItem('veriff_session_id', sessionId);
-        
-        // Redirect to Veriff
-        window.location.href = url;
+      const { url } = await response.json();
+
+      if (!url) {
+        throw new Error('No verification URL received');
       }
-    } catch (error: any) {
-      console.error("Error:", error);
-      setError(error.message || "Something went wrong");
+
+      // Redirect to Veriff
+      window.location.href = url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
       setLoading(false);
     }
   };
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center max-w-md px-6">
-          <div className="bg-white rounded-lg shadow-lg p-8">
-            <p className="text-red-600 mb-4">❌ {error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Try Again
-            </button>
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">Identity Verification</h1>
+        <p className="text-gray-600 mb-6">
+          Please verify your identity to continue with the onboarding process.
+        </p>
+
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-800 text-sm">{error}</p>
           </div>
-        </div>
-      </div>
-    );
-  }
+        )}
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Starting Identity Verification</h2>
-          <p className="text-gray-600">Please wait a moment...</p>
-        </div>
+        <button
+          onClick={handleStartVerification}
+          disabled={loading}
+          className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          {loading ? 'Starting verification...' : 'Start Verification'}
+        </button>
       </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 }
 

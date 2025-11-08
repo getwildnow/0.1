@@ -1,5 +1,6 @@
-// Production-ready logging utility
-// Provides structured logging with different levels
+/**
+ * Structured logging utility
+ */
 
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
@@ -8,69 +9,44 @@ interface LogContext {
 }
 
 class Logger {
-  private isDevelopment = process.env.NODE_ENV === 'development';
-  private isProduction = process.env.NODE_ENV === 'production';
-
   private formatMessage(level: LogLevel, message: string, context?: LogContext): string {
     const timestamp = new Date().toISOString();
-    const contextStr = context ? ` | ${JSON.stringify(context)}` : '';
+    const contextStr = context ? ` ${JSON.stringify(context)}` : '';
     return `[${timestamp}] [${level.toUpperCase()}] ${message}${contextStr}`;
   }
 
-  info(message: string, context?: LogContext) {
+  info(message: string, context?: LogContext): void {
     console.log(this.formatMessage('info', message, context));
   }
 
-  warn(message: string, context?: LogContext) {
+  warn(message: string, context?: LogContext): void {
     console.warn(this.formatMessage('warn', message, context));
   }
 
-  error(message: string, error?: Error | any, context?: LogContext) {
-    const errorContext = {
-      ...context,
-      ...(error && {
-        error: error.message || error,
-        stack: error.stack,
-      }),
-    };
+  error(message: string, error?: Error | null, context?: LogContext): void {
+    const errorContext = error
+      ? { ...context, error: error.message, stack: error.stack }
+      : context;
     console.error(this.formatMessage('error', message, errorContext));
   }
 
-  debug(message: string, context?: LogContext) {
-    if (this.isDevelopment) {
+  debug(message: string, context?: LogContext): void {
+    if (process.env.NODE_ENV === 'development') {
       console.debug(this.formatMessage('debug', message, context));
     }
   }
 
-  // API-specific logging
-  apiRequest(method: string, path: string, userId?: string) {
-    this.info('API Request', { method, path, userId });
+  serviceCall(service: string, action: string, context?: LogContext): void {
+    this.info(`Service call: ${service}.${action}`, context);
   }
 
-  apiError(method: string, path: string, error: Error | any, userId?: string) {
-    this.error('API Error', error, { method, path, userId });
-  }
-
-  apiSuccess(method: string, path: string, duration?: number) {
-    this.debug('API Success', { method, path, duration });
-  }
-
-  // Database-specific logging
-  dbQuery(table: string, operation: string) {
-    this.debug('Database Query', { table, operation });
-  }
-
-  dbError(table: string, operation: string, error: Error | any) {
-    this.error('Database Error', error, { table, operation });
-  }
-
-  // Third-party service logging
-  serviceCall(service: string, operation: string) {
-    this.info('Service Call', { service, operation });
-  }
-
-  serviceError(service: string, operation: string, error: Error | any) {
-    this.error('Service Error', error, { service, operation });
+  dbError(table: string, operation: string, error: any, context?: LogContext): void {
+    this.error(`Database error: ${table}.${operation}`, error instanceof Error ? error : null, {
+      ...context,
+      table,
+      operation,
+      dbError: error,
+    });
   }
 }
 

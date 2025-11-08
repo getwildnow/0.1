@@ -1,3 +1,7 @@
+/**
+ * OpenAI client initialization
+ */
+
 import OpenAI from 'openai';
 import { env } from './env';
 

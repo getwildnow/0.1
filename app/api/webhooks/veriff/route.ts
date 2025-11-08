@@ -1,28 +1,29 @@
+/**
+ * Veriff webhook handler
+ * Processes verification results and extracts user data
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 import { veriff } from '@/lib/veriff';
 import { createServiceRoleClient } from '@/lib/supabase/service';
-import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
 import { logger } from '@/lib/logger';
-import { redirect } from 'next/navigation';
 
 // Handle GET requests (user redirect from Veriff) - redirect to chat
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   logger.warn('User redirected to webhook endpoint via GET - redirecting to chat');
   
-  // Extract session from URL if present
   const url = new URL(request.url);
   const sessionParam = url.searchParams.get('session') || url.searchParams.get('vendorData');
   
-  // Redirect to chat with session if available
   if (sessionParam) {
     return NextResponse.redirect(new URL(`/onboard/chat?session=${sessionParam}`, url.origin));
   }
   
-  // Otherwise redirect to homepage to start over
   return NextResponse.redirect(new URL('/onboard/verify', url.origin));
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   logger.serviceCall('veriff', 'webhook_received');
   
   const body = await request.text();
@@ -37,22 +38,15 @@ export async function POST(request: Request) {
   // Verify webhook signature
   const isValid = veriff.verifyWebhookSignature(body, signature);
   if (!isValid) {
-    // Log more details for debugging
     logger.error('Veriff webhook signature verification failed', null, { 
       signature,
       bodyLength: body.length,
       bodyPreview: body.substring(0, 100)
     });
-    
-    // TEMPORARY: Comment out for initial testing to see webhook payload
-    // return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
   
-  if (isValid) {
-    logger.info('Veriff webhook signature verified');
-  } else {
-    logger.warn('Proceeding without signature verification (TEMPORARY - FIX VERIFF_API_SECRET!)');
-  }
+  logger.info('Veriff webhook signature verified');
 
   // Use service role client to bypass RLS (webhooks have no user session)
   const supabase = createServiceRoleClient();
@@ -68,16 +62,15 @@ export async function POST(request: Request) {
       vendorData: event.vendorData
     });
   } catch (error) {
-    logger.error('Failed to parse webhook body', error);
+    logger.error('Failed to parse webhook body', error instanceof Error ? error : null);
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  // Veriff sends events with the session ID at root level
-  // Look for vendorData at multiple possible locations
+  // Extract sessionId from vendorData
   const veriffSessionId = event.id;
   let sessionId = event.vendorData;
   
-  // If vendorData not at root, check database for matching veriff session
+  // If vendorData not found, query database for matching veriff session
   if (!sessionId && veriffSessionId) {
     const { data: profile } = await supabase
       .from('user_profiles')
@@ -113,18 +106,10 @@ export async function POST(request: Request) {
     fullVerification = await veriff.getVerification(veriffSessionId);
     logger.debug('Retrieved full verification details', { veriffSessionId });
   } catch (error) {
-    logger.error('Error fetching verification details', error, { veriffSessionId });
+    logger.error('Error fetching verification details', error instanceof Error ? error : null, { veriffSessionId });
     // Continue with webhook event data
     fullVerification = event;
   }
-
-  // Log the FULL verification object for debugging
-  logger.info('Full Veriff verification data received', { 
-    veriffSessionId,
-    hasFullVerification: !!fullVerification,
-    fullVerificationKeys: fullVerification ? Object.keys(fullVerification) : [],
-    fullVerificationSample: JSON.stringify(fullVerification).substring(0, 500)
-  });
 
   // Extract person data from API response or webhook
   const person = fullVerification.person || event.person || {};
@@ -140,7 +125,6 @@ export async function POST(request: Request) {
   // Parse date of birth
   let dob = null;
   if (person.dateOfBirth) {
-    // Veriff returns date as YYYY-MM-DD or timestamp
     dob = person.dateOfBirth.includes('-') 
       ? person.dateOfBirth 
       : new Date(parseInt(person.dateOfBirth)).toISOString().split('T')[0];
@@ -154,7 +138,7 @@ export async function POST(request: Request) {
   const zipCode = address.zipCode || addressParts[3] || null;
   const country = address.country || addressParts[4] || null;
 
-  // Extract email and phone (might be in person object or additionalData)
+  // Extract email and phone
   const email = person.email || fullVerification.email || event.email || null;
   const phone = person.phone || person.phoneNumber || fullVerification.phone || event.phone || null;
 
@@ -162,7 +146,7 @@ export async function POST(request: Request) {
   const status = event.status || fullVerification.status || 'pending';
   const isApproved = status === 'approved' || status === 'success';
 
-  // Extract ALL data
+  // Extract all data
   const profileData = {
     veriff_verification_session_id: veriffSessionId,
     verification_status: isApproved ? 'verified' : status,
@@ -175,12 +159,12 @@ export async function POST(request: Request) {
     id_number: person.idNumber || document.number || null,
     document_type: document.type || null,
     address_line1: street || null,
-    address_line2: null, // Veriff doesn't always provide line2
+    address_line2: null,
     city: city || null,
     state: state || null,
     postal_code: zipCode || null,
     country: country || person.nationality || null,
-    veriff_data: fullVerification as any, // Store EVERYTHING as JSONB
+    veriff_data: fullVerification as any,
     verified_at: isApproved ? new Date().toISOString() : null,
   };
 

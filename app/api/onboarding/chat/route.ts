@@ -1,242 +1,218 @@
-import { createClient } from '@/lib/supabase/server';
-import { NextResponse } from 'next/server';
-import { generateNextMessage, extractAnswer } from '@/lib/ai/conversation';
+/**
+ * AI Chat endpoint for onboarding conversation
+ */
 
-export async function POST(request: Request) {
+import { NextRequest, NextResponse } from 'next/server';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logger';
+import { generateAIResponse, extractAnswer, type ConversationContext } from '@/lib/ai/conversation';
+
+// GET: Load chat history
+export async function GET(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { message, action, choice, sessionId } = body;
+    const searchParams = request.nextUrl.searchParams;
+    const userId = searchParams.get('userId');
 
-    if (!sessionId) {
-      return NextResponse.json({ error: 'Session ID required' }, { status: 400 });
+    if (!userId) {
+      return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = await createServerSupabaseClient();
+    
+    // Verify user is authenticated and matches userId
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user || user.id !== userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    // Load user profile (Veriff data)
-    const { data: profile } = await supabase
+    // Load chat messages
+    const { data: messages, error } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('user_id', userId)
+      .order('timestamp', { ascending: true });
+
+    if (error) {
+      logger.dbError('chat_messages', 'select', error);
+      return NextResponse.json({ error: 'Database error' }, { status: 500 });
+    }
+
+    return NextResponse.json({ messages: messages || [] });
+  } catch (error) {
+    logger.error('Error loading chat history', error instanceof Error ? error : null);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// POST: Send message and get AI response
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { userId, message } = body;
+
+    if (!userId || !message) {
+      return NextResponse.json({ error: 'Missing userId or message' }, { status: 400 });
+    }
+
+    const supabase = await createServerSupabaseClient();
+    
+    // Verify user is authenticated and matches userId
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user || user.id !== userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Load Veriff data
+    const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select('*')
-      .eq('user_id', sessionId)
+      .eq('user_id', userId)
       .single();
 
-    // Load config
-    const { data: config } = await supabase
+    if (profileError) {
+      logger.dbError('user_profiles', 'select', profileError);
+      return NextResponse.json({ error: 'Database error' }, { status: 500 });
+    }
+
+    if (!profile || profile.verification_status !== 'verified') {
+      return NextResponse.json({ error: 'Verification not complete' }, { status: 400 });
+    }
+
+    // Load admin config
+    const { data: config, error: configError } = await supabase
       .from('onboarding_config')
       .select('*')
       .eq('id', 'default')
       .single();
 
-    if (!config) {
+    if (configError && configError.code !== 'PGRST116') {
+      logger.dbError('onboarding_config', 'select', configError);
       return NextResponse.json({ error: 'No config found' }, { status: 400 });
     }
 
+    const dataPoints = config?.data_points || [];
+
     // Load conversation state
-    let { data: conversation } = await supabase
+    const { data: conversation } = await supabase
       .from('onboarding_conversations')
       .select('*')
-      .eq('user_id', sessionId)
+      .eq('user_id', userId)
       .single();
 
-    // Initialize conversation if doesn't exist
-    if (!conversation) {
-      const { data: newConv } = await supabase
-        .from('onboarding_conversations')
-        .insert({
-          user_id: sessionId,
-          veriff_data: profile || {},
-          veriff_verified: profile?.verification_status === 'verified',
-          status: 'pending',
-        })
-        .select()
-        .single();
-      conversation = newConv;
-    }
-
-    // Load collected data
-    const { data: collectedData } = await supabase
+    // Load collected data from database
+    const collectedData: Record<string, any> = {};
+    const { data: onboardingData } = await supabase
       .from('user_onboarding_data')
       .select('*')
-      .eq('user_id', sessionId);
+      .eq('user_id', userId);
 
-    // Load connected integrations
-    const { data: integrations } = await supabase
-      .from('user_integrations')
-      .select('integration_name')
-      .eq('user_id', sessionId);
-
-    const collected: Record<string, any> = {};
-    collectedData?.forEach((item) => {
-      collected[item.data_point] = item.value;
+    onboardingData?.forEach(item => {
+      collectedData[item.data_point] = item.value;
     });
-
-    const integrationsConnected = integrations?.map((i) => i.integration_name) || [];
-
-    // Handle actions
-    if (action === 'consent_agreed') {
-      await supabase.from('onboarding_conversations').upsert({
-        user_id: sessionId,
-        consent_agreed: true,
-        veriff_data: profile,
-        veriff_verified: profile?.verification_status === 'verified',
-        status: 'collecting',
-      }, {
-        onConflict: 'user_id'
-      });
-
-      await supabase.from('consents').insert({
-        user_id: sessionId,
-        consent_type: 'onboarding_complete',
-      });
-    } else if (action === 'answer' && message) {
-      // Find the next unanswered data point (excluding integrations and actions)
-      const answeredPoints = collectedData?.map((d) => d.data_point) || [];
-      const questionDataPoints = config.data_points.filter(
-        (dp: string) => !config.integrations.includes(dp) && !config.actions.includes(dp)
-      );
-      const dataPoint = questionDataPoints.find((dp: string) => !answeredPoints.includes(dp));
-
-      if (dataPoint) {
-        const extracted = await extractAnswer(dataPoint, message);
-
-        // Save answer
-        await supabase.from('user_onboarding_data').insert({
-          user_id: sessionId,
-          data_point: dataPoint,
-          value: extracted,
-        });
-
-        // Update conversation
-        const currentCollected = conversation?.data_points_collected || [];
-        await supabase
-          .from('onboarding_conversations')
-          .upsert({
-            user_id: sessionId,
-            data_points_collected: [...currentCollected, dataPoint],
-            veriff_data: profile,
-            veriff_verified: profile?.verification_status === 'verified',
-            status: 'collecting',
-          }, {
-            onConflict: 'user_id'
-          });
-      }
-    } else if (action === 'integration_connected') {
-      const integration = message;
-      await supabase.from('user_integrations').upsert({
-        user_id: sessionId,
-        integration_name: integration,
-        connected_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id,integration_name'
-      });
-
-      // Update conversation
-      const currentIntegrations = conversation?.integrations_connected || [];
-      await supabase
-        .from('onboarding_conversations')
-        .upsert({
-          user_id: sessionId,
-          integrations_connected: [...currentIntegrations, integration],
-        }, {
-          onConflict: 'user_id'
-        });
-    } else if (action === 'action_completed') {
-      const actionName = message;
-      await supabase.from('user_onboarding_data').insert({
-        user_id: sessionId,
-        data_point: actionName,
-        value: { completed: true, choice: choice || null },
-      });
-    } else if (action === 'get_next') {
-      // Just get next message without processing action
-    }
-
-    // Reload conversation state after updates
-    const { data: updatedConversation } = await supabase
-      .from('onboarding_conversations')
-      .select('*')
-      .eq('user_id', sessionId)
-      .single();
-
-    const { data: updatedCollected } = await supabase
-      .from('user_onboarding_data')
-      .select('*')
-      .eq('user_id', sessionId);
-
-    const { data: updatedIntegrations } = await supabase
-      .from('user_integrations')
-      .select('integration_name')
-      .eq('user_id', sessionId);
-
-    const updatedCollectedMap: Record<string, any> = {};
-    updatedCollected?.forEach((item) => {
-      updatedCollectedMap[item.data_point] = item.value;
-    });
-
-    const updatedIntegrationsList = updatedIntegrations?.map((i) => i.integration_name) || [];
-
-    // Generate next message
-    const state = {
-      veriffData: profile || {},
-      config: {
-        dataPoints: config.data_points || [],
-        integrations: config.integrations || [],
-        actions: config.actions || [],
-      },
-      collected: updatedCollectedMap,
-      integrationsConnected: updatedIntegrationsList,
-      consentAgreed: updatedConversation?.consent_agreed || action === 'consent_agreed',
-    };
-
-    const nextMessage = await generateNextMessage(state);
-
-    // Save AI message to chat
-    await supabase.from('chat_messages').insert({
-      user_id: sessionId,
-      role: 'assistant',
-      type: nextMessage.type,
-      content: nextMessage.content,
-      metadata: nextMessage.metadata || {},
-    });
-
-    // If complete, update conversation status
-    if (nextMessage.type === 'complete') {
-      await supabase
-        .from('onboarding_conversations')
-        .update({
-          status: 'complete',
-          completed_at: new Date().toISOString(),
-        })
-        .eq('user_id', sessionId);
-    }
-
-    return NextResponse.json({ message: nextMessage });
-  } catch (error: any) {
-    console.error('Error in chat API:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
-  }
-}
-
-export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const sessionId = searchParams.get('sessionId');
-
-    if (!sessionId) {
-      return NextResponse.json({ error: 'Session ID required' }, { status: 400 });
-    }
-
-    const supabase = await createClient();
 
     // Load chat history
-    const { data: messages } = await supabase
+    const { data: existingMessages } = await supabase
       .from('chat_messages')
       .select('*')
-      .eq('user_id', sessionId)
+      .eq('user_id', userId)
       .order('timestamp', { ascending: true });
 
-    return NextResponse.json({ messages: messages || [] });
-  } catch (error: any) {
+    const chatMessages = (existingMessages || []).map(msg => ({
+      role: msg.role as 'user' | 'assistant',
+      content: msg.content,
+    }));
+
+    // Add user message
+    chatMessages.push({ role: 'user', content: message });
+
+    // Save user message
+    await supabase.from('chat_messages').insert({
+      user_id: userId,
+      role: 'user',
+      type: 'text',
+      content: message,
+    });
+
+    // Prepare conversation context
+    const context: ConversationContext = {
+      veriffData: {
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        dob: profile.dob,
+        gender: profile.gender,
+        email: profile.email,
+        phone: profile.phone,
+        address_line1: profile.address_line1,
+        city: profile.city,
+        state: profile.state,
+        postal_code: profile.postal_code,
+        country: profile.country,
+        id_number: profile.id_number,
+        document_type: profile.document_type,
+      },
+      dataPoints,
+      collectedData,
+      messages: chatMessages,
+    };
+
+    // Generate AI response
+    const aiResponse = await generateAIResponse(context);
+
+    // Save AI response
+    await supabase.from('chat_messages').insert({
+      user_id: userId,
+      role: 'assistant',
+      type: 'text',
+      content: aiResponse,
+    });
+
+    // Extract answers from user message (simple extraction)
+    // In a real implementation, you might want more sophisticated extraction
+    const remainingDataPoints = dataPoints.filter((dp: string) => !collectedData[dp]);
+    let newlyCollectedDataPoint: string | null = null;
+    
+    if (remainingDataPoints.length > 0) {
+      // Try to extract answer for the first remaining data point
+      const currentDataPoint = remainingDataPoints[0];
+      const answer = extractAnswer(message, currentDataPoint);
+      
+      // Save extracted answer
+      await supabase.from('user_onboarding_data').upsert({
+        user_id: userId,
+        data_point: currentDataPoint,
+        value: answer,
+      });
+      
+      newlyCollectedDataPoint = currentDataPoint;
+      collectedData[currentDataPoint] = answer;
+    }
+
+    // Update conversation status - check if all data points are collected
+    const allCollected = dataPoints.length > 0 && dataPoints.every((dp: string) => collectedData[dp]);
+    if (allCollected) {
+      await supabase.from('onboarding_conversations').update({
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        data_points_collected: dataPoints,
+      }).eq('user_id', userId);
+    } else if (newlyCollectedDataPoint) {
+      // Update data_points_collected array
+      const updatedCollected = conversation?.data_points_collected || [];
+      if (!updatedCollected.includes(newlyCollectedDataPoint)) {
+        updatedCollected.push(newlyCollectedDataPoint);
+        await supabase.from('onboarding_conversations').update({
+          data_points_collected: updatedCollected,
+        }).eq('user_id', userId);
+      }
+    }
+
+    return NextResponse.json({
+      message: aiResponse,
+      type: 'text',
+    });
+  } catch (error) {
+    logger.error('Error processing chat message', error instanceof Error ? error : null);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+

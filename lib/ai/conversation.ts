@@ -1,171 +1,124 @@
+/**
+ * AI conversation logic for onboarding
+ */
+
 import { openai } from '@/lib/openai';
 
-export interface ConversationState {
-  veriffData: any;
-  config: {
-    dataPoints: string[];
-    integrations: string[];
-    actions: string[];
-  };
-  collected: Record<string, any>;
-  integrationsConnected: string[];
-  consentAgreed: boolean;
+export interface VeriffData {
+  first_name?: string | null;
+  last_name?: string | null;
+  dob?: string | null;
+  gender?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address_line1?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
+  id_number?: string | null;
+  document_type?: string | null;
 }
 
-export async function generateNextMessage(state: ConversationState): Promise<{
-  type: 'consent' | 'question' | 'integration' | 'action' | 'complete';
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system';
   content: string;
-  metadata?: any;
-}> {
-  const { veriffData, config, collected, integrationsConnected, consentAgreed } = state;
-
-  // Step 1: Consent
-  if (!consentAgreed) {
-    const name = veriffData?.first_name || 'there';
-    const location = veriffData?.city 
-      ? `I see you're from ${veriffData.city}${veriffData.state ? `, ${veriffData.state}` : ''}.`
-      : '';
-    return {
-      type: 'consent',
-      content: `Hi ${name}! ${location} I'm your health companion. Before we start, please agree to our terms.`,
-    };
-  }
-
-  // Step 2: Questions (data points)
-  // Filter out integrations and actions from data points
-  const questionDataPoints = config.dataPoints.filter(
-    (dp) => !config.integrations.includes(dp) && !config.actions.includes(dp)
-  );
-  const remainingQuestions = questionDataPoints.filter((dp) => !collected[dp]);
-
-  if (remainingQuestions.length > 0) {
-    const nextQuestion = remainingQuestions[0];
-    const question = await generateQuestion(nextQuestion, veriffData);
-    
-    return {
-      type: 'question',
-      content: question,
-      metadata: { dataPoint: nextQuestion },
-    };
-  }
-
-  // Step 3: Integrations
-  const remainingIntegrations = config.integrations.filter(
-    (int) => !integrationsConnected.includes(int)
-  );
-
-  if (remainingIntegrations.length > 0) {
-    const nextIntegration = remainingIntegrations[0];
-    const integrationName = getIntegrationDisplayName(nextIntegration);
-    
-    return {
-      type: 'integration',
-      content: `Let's connect your ${integrationName} to sync your data.`,
-      metadata: { integration: nextIntegration },
-    };
-  }
-
-  // Step 4: Actions
-  const remainingActions = config.actions.filter(
-    (act) => !collected[act]
-  );
-
-  if (remainingActions.length > 0) {
-    const nextAction = remainingActions[0];
-    
-    if (nextAction.includes('wearable')) {
-      return {
-        type: 'action',
-        content: 'Which wearable would you like? We\'ll ship it to you for free!',
-        metadata: {
-          action: 'wearable_selection',
-          choices: ['Oura Ring', 'Whoop Band', 'I already have one'],
-        },
-      };
-    }
-  }
-
-  // Step 5: Complete
-  return {
-    type: 'complete',
-    content: `Perfect! You're all set, ${veriffData?.first_name || 'there'}. Welcome to getwild!`,
-  };
 }
 
-async function generateQuestion(dataPoint: string, veriffData: any): Promise<string> {
-  const prompt = `Generate a natural, conversational question to ask about: "${dataPoint}"
+export interface ConversationContext {
+  veriffData: VeriffData;
+  dataPoints: string[];
+  collectedData: Record<string, any>;
+  messages: ChatMessage[];
+}
 
-User's info (you can reference this naturally):
-- Name: ${veriffData?.first_name || 'User'}
-- Age: ${veriffData?.dob ? calculateAge(veriffData.dob) : 'unknown'}
-- Location: ${veriffData?.city || 'unknown'}, ${veriffData?.state || ''}
-
-Generate a friendly, conversational question. Just the question, nothing else.`;
-
-  try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-      max_tokens: 100,
-    });
-
-    return response.choices[0].message.content || `Tell me about your ${dataPoint}.`;
-  } catch (error) {
-    return `Tell me about your ${dataPoint}.`;
+/**
+ * Generate system prompt that includes Veriff data
+ * CRITICAL: AI should never ask for data already extracted from Veriff
+ */
+export function generateSystemPrompt(
+  veriffData: VeriffData,
+  dataPoints: string[]
+): string {
+  const veriffInfo: string[] = [];
+  
+  if (veriffData.first_name) veriffInfo.push(`First Name: ${veriffData.first_name}`);
+  if (veriffData.last_name) veriffInfo.push(`Last Name: ${veriffData.last_name}`);
+  if (veriffData.dob) veriffInfo.push(`Date of Birth: ${veriffData.dob}`);
+  if (veriffData.gender) veriffInfo.push(`Gender: ${veriffData.gender}`);
+  if (veriffData.email) veriffInfo.push(`Email: ${veriffData.email}`);
+  if (veriffData.phone) veriffInfo.push(`Phone: ${veriffData.phone}`);
+  if (veriffData.address_line1) {
+    const address = [
+      veriffData.address_line1,
+      veriffData.city,
+      veriffData.state,
+      veriffData.postal_code,
+      veriffData.country,
+    ].filter(Boolean).join(', ');
+    veriffInfo.push(`Address: ${address}`);
   }
+  if (veriffData.id_number) veriffInfo.push(`ID Number: ${veriffData.id_number}`);
+  if (veriffData.document_type) veriffInfo.push(`Document Type: ${veriffData.document_type}`);
+
+  const veriffInfoStr = veriffInfo.length > 0
+    ? `\n\nVERIFF VERIFICATION DATA (DO NOT ASK FOR THESE - THEY ARE ALREADY COLLECTED):\n${veriffInfo.join('\n')}`
+    : '';
+
+  const dataPointsStr = dataPoints.length > 0
+    ? `\n\nDATA POINTS TO COLLECT:\n${dataPoints.map((dp, i) => `${i + 1}. ${dp}`).join('\n')}`
+    : '';
+
+  return `You are a helpful onboarding assistant for getwild Prime Care. Your role is to guide new employees through the onboarding process.
+
+${veriffInfoStr}
+
+${dataPointsStr}
+
+IMPORTANT RULES:
+1. NEVER ask for information that was already collected from Veriff (name, DOB, address, email, phone, ID number, document type)
+2. Start by requesting consent for data collection
+3. Collect the remaining data points from the list above in a conversational, friendly manner
+4. Ask one question at a time
+5. Be concise and professional
+6. Once all data points are collected, confirm completion and thank the user
+
+Respond naturally and conversationally.`;
 }
 
-export async function extractAnswer(
-  dataPoint: string,
-  userResponse: string
-): Promise<any> {
-  const prompt = `Extract structured data for "${dataPoint}" from this user response: "${userResponse}"
+/**
+ * Generate AI response using GPT-4
+ */
+export async function generateAIResponse(
+  context: ConversationContext
+): Promise<string> {
+  const systemPrompt = generateSystemPrompt(context.veriffData, context.dataPoints);
+  
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: 'system', content: systemPrompt },
+    ...context.messages.map(msg => ({
+      role: msg.role,
+      content: msg.content,
+    })),
+  ];
 
-Return a JSON object with the extracted value. Examples:
-- "health goals" → {"value": "lose weight, sleep better"}
-- "medications" → {"value": ["aspirin", "metformin"]}
-- "exercise frequency" → {"value": "3-4 times per week"}
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4',
+    messages,
+    temperature: 0.7,
+    max_tokens: 500,
+  });
 
-Return ONLY valid JSON, no other text.`;
-
-  try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.3,
-      response_format: { type: 'json_object' },
-    });
-
-    const parsed = JSON.parse(response.choices[0].message.content || '{}');
-    return parsed.value;
-  } catch (error) {
-    return userResponse; // Fallback to raw response
-  }
+  return completion.choices[0]?.message?.content || 'I apologize, but I encountered an error. Please try again.';
 }
 
-function getIntegrationDisplayName(integration: string): string {
-  const names: Record<string, string> = {
-    'apple health': 'Apple Health',
-    'google workspace': 'Google Workspace',
-    'google fit': 'Google Fit',
-    'instagram': 'Instagram',
-    'linkedin': 'LinkedIn',
-    'strava': 'Strava',
-    'myfitnesspal': 'MyFitnessPal',
-    'spotify': 'Spotify',
-    'twitter': 'Twitter/X',
-  };
-  return names[integration.toLowerCase()] || integration;
+/**
+ * Extract answer from user message
+ * Simple extraction - can be enhanced with more sophisticated parsing
+ */
+export function extractAnswer(message: string, dataPoint: string): any {
+  // Simple extraction - return the message as the answer
+  // Can be enhanced with more sophisticated parsing if needed
+  return message.trim();
 }
 
-function calculateAge(dob: string): number {
-  const birthDate = new Date(dob);
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
-  return age;
-}

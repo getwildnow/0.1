@@ -1,94 +1,127 @@
-"use client";
+'use client';
 
-import { useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import ChatInterface from "@/components/chat/ChatInterface";
-import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
+import ChatInterface from '@/components/chat/ChatInterface';
 
 function ChatPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createClient();
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [isReady, setIsReady] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    checkVerification();
-  }, []);
-
-  const checkVerification = async () => {
-    // Get session ID from localStorage (stored before redirecting to Veriff)
-    const sessionId = localStorage.getItem('veriff_session_id');
-    
-    if (!sessionId) {
-      // No session, redirect to start
-      router.push("/");
-      return;
-    }
-
-    // Wait for webhook to process verification
-    setIsVerifying(true);
-    await pollForVerification(sessionId);
-    setIsVerifying(false);
-    
-    // Ready to chat
-    setIsReady(true);
-  };
-
-  // Poll API to wait for webhook to update profile
-  const pollForVerification = async (userId: string, maxAttempts = 15) => {
-    for (let i = 0; i < maxAttempts; i++) {
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
-      
+    const initializeChat = async () => {
       try {
-        const response = await fetch(`/api/verify-status?sessionId=${userId}`);
-        if (response.ok) {
-          const data = await response.json();
-          
-          if (data.verification_status === "verified") {
-            // Verification complete!
-            return;
-          }
+        const supabase = createClient();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+          setError('Please authenticate first');
+          router.push('/onboard/verify');
+          return;
         }
-      } catch (error) {
-        console.error("Error checking verification status:", error);
+
+        const currentUserId = user.id;
+        setUserId(currentUserId);
+
+        // Poll for verification status
+        const pollForVerification = async (): Promise<boolean> => {
+          const maxAttempts = 30; // 30 attempts = 30 seconds max
+          let attempts = 0;
+
+          while (attempts < maxAttempts) {
+            try {
+              const response = await fetch(`/api/verify-status?userId=${currentUserId}`);
+              
+              if (!response.ok) {
+                throw new Error('Failed to check verification status');
+              }
+
+              const data = await response.json();
+              
+              if (data.verified) {
+                return true;
+              }
+
+              // Wait 1 second before next attempt
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              attempts++;
+            } catch (err) {
+              console.error('Error polling verification:', err);
+              attempts++;
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+
+          return false;
+        };
+
+        const isVerified = await pollForVerification();
+
+        if (!isVerified) {
+          setError('Verification not complete. Please complete identity verification first.');
+          router.push('/onboard/verify');
+          return;
+        }
+
+        setLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        setLoading(false);
       }
-    }
-    
-    // After timeout, continue anyway (Veriff data might still be usable)
-    console.log("Verification polling complete");
-  };
+    };
 
-  // Show loading state while verifying webhook
-  if (isVerifying) {
+    initializeChat();
+  }, [router]);
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Processing your verification...</h2>
-          <p className="text-gray-600">This will only take a moment</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Waiting for verification to complete...</p>
         </div>
       </div>
     );
   }
 
-  if (!isReady) {
+  if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-700">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => router.push('/onboard/verify')}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+          >
+            Go to Verification
+          </button>
         </div>
       </div>
     );
   }
 
-  return <ChatInterface />;
+  if (!userId) {
+    return null;
+  }
+
+  return <ChatInterface userId={userId} />;
 }
 
-export default function OnboardingChatPage() {
+export default function ChatPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
       <ChatPageContent />
     </Suspense>
   );
