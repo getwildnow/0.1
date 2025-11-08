@@ -23,9 +23,9 @@ export async function POST(request: NextRequest) {
 
     const userId = user.id;
 
-    // Generate callback URL for webhook
+    // Generate callback URL for user redirect after verification
     const baseUrl = env.railway.externalUrl || request.headers.get('origin') || 'http://localhost:3000';
-    const callbackUrl = `${baseUrl}/api/webhooks/veriff`;
+    const callbackUrl = `${baseUrl}/onboard/chat`;
 
     logger.info('Creating Veriff session', { userId, callbackUrl });
 
