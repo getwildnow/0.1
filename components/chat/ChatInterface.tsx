@@ -33,7 +33,13 @@ export default function ChatInterface() {
 
   const loadChatHistory = async () => {
     try {
-      const response = await fetch("/api/onboarding/chat");
+      const sessionId = localStorage.getItem('veriff_session_id');
+      if (!sessionId) {
+        console.error('No session ID found');
+        return;
+      }
+
+      const response = await fetch(`/api/onboarding/chat?sessionId=${sessionId}`);
       if (response.ok) {
         const data = await response.json();
         if (data.messages && data.messages.length > 0) {
@@ -70,10 +76,16 @@ export default function ChatInterface() {
   const startConversation = async () => {
     setLoading(true);
     try {
+      const sessionId = localStorage.getItem('veriff_session_id');
+      if (!sessionId) {
+        console.error('No session ID found');
+        return;
+      }
+
       const response = await fetch("/api/onboarding/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "get_next" }),
+        body: JSON.stringify({ action: "get_next", sessionId }),
       });
 
       if (response.ok) {
@@ -113,12 +125,19 @@ export default function ChatInterface() {
     setLoading(true);
 
     try {
+      const sessionId = localStorage.getItem('veriff_session_id');
+      if (!sessionId) {
+        console.error('No session ID found');
+        return;
+      }
+
       const response = await fetch("/api/onboarding/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: messageText,
           action: "answer",
+          sessionId,
         }),
       });
 
@@ -173,10 +192,16 @@ export default function ChatInterface() {
     setConsentAgreed(true);
     setLoading(true);
     try {
+      const sessionId = localStorage.getItem('veriff_session_id');
+      if (!sessionId) {
+        console.error('No session ID found');
+        return;
+      }
+
       const response = await fetch("/api/onboarding/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "consent_agreed" }),
+        body: JSON.stringify({ action: "consent_agreed", sessionId }),
       });
 
       if (response.ok) {
@@ -224,12 +249,19 @@ export default function ChatInterface() {
     // For now, simulate connection
     setLoading(true);
     try {
+      const sessionId = localStorage.getItem('veriff_session_id');
+      if (!sessionId) {
+        console.error('No session ID found');
+        return;
+      }
+
       const response = await fetch("/api/onboarding/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "integration_connected",
           message: integration,
+          sessionId,
         }),
       });
 
@@ -267,6 +299,12 @@ export default function ChatInterface() {
 
     setLoading(true);
     try {
+      const sessionId = localStorage.getItem('veriff_session_id');
+      if (!sessionId) {
+        console.error('No session ID found');
+        return;
+      }
+
       const response = await fetch("/api/onboarding/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -274,6 +312,7 @@ export default function ChatInterface() {
           action: "action_completed",
           message: action,
           choice,
+          sessionId,
         }),
       });
 

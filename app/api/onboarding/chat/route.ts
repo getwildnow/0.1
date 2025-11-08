@@ -4,21 +4,20 @@ import { generateNextMessage, extractAnswer } from '@/lib/ai/conversation';
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const body = await request.json();
+    const { message, action, choice, sessionId } = body;
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!sessionId) {
+      return NextResponse.json({ error: 'Session ID required' }, { status: 400 });
     }
 
-    const body = await request.json();
-    const { message, action, choice } = body;
+    const supabase = await createClient();
 
     // Load user profile (Veriff data)
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', sessionId)
       .single();
 
     // Load config
@@ -36,7 +35,7 @@ export async function POST(request: Request) {
     let { data: conversation } = await supabase
       .from('onboarding_conversations')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', sessionId)
       .single();
 
     // Initialize conversation if doesn't exist
@@ -44,7 +43,7 @@ export async function POST(request: Request) {
       const { data: newConv } = await supabase
         .from('onboarding_conversations')
         .insert({
-          user_id: user.id,
+          user_id: sessionId,
           veriff_data: profile || {},
           veriff_verified: profile?.verification_status === 'verified',
           status: 'pending',
@@ -58,13 +57,13 @@ export async function POST(request: Request) {
     const { data: collectedData } = await supabase
       .from('user_onboarding_data')
       .select('*')
-      .eq('user_id', user.id);
+      .eq('user_id', sessionId);
 
     // Load connected integrations
     const { data: integrations } = await supabase
       .from('user_integrations')
       .select('integration_name')
-      .eq('user_id', user.id);
+      .eq('user_id', sessionId);
 
     const collected: Record<string, any> = {};
     collectedData?.forEach((item) => {
@@ -76,7 +75,7 @@ export async function POST(request: Request) {
     // Handle actions
     if (action === 'consent_agreed') {
       await supabase.from('onboarding_conversations').upsert({
-        user_id: user.id,
+        user_id: sessionId,
         consent_agreed: true,
         veriff_data: profile,
         veriff_verified: profile?.verification_status === 'verified',
@@ -86,7 +85,7 @@ export async function POST(request: Request) {
       });
 
       await supabase.from('consents').insert({
-        user_id: user.id,
+        user_id: sessionId,
         consent_type: 'onboarding_complete',
       });
     } else if (action === 'answer' && message) {
@@ -102,7 +101,7 @@ export async function POST(request: Request) {
 
         // Save answer
         await supabase.from('user_onboarding_data').insert({
-          user_id: user.id,
+          user_id: sessionId,
           data_point: dataPoint,
           value: extracted,
         });
@@ -112,7 +111,7 @@ export async function POST(request: Request) {
         await supabase
           .from('onboarding_conversations')
           .upsert({
-            user_id: user.id,
+            user_id: sessionId,
             data_points_collected: [...currentCollected, dataPoint],
             veriff_data: profile,
             veriff_verified: profile?.verification_status === 'verified',
@@ -124,7 +123,7 @@ export async function POST(request: Request) {
     } else if (action === 'integration_connected') {
       const integration = message;
       await supabase.from('user_integrations').upsert({
-        user_id: user.id,
+        user_id: sessionId,
         integration_name: integration,
         connected_at: new Date().toISOString(),
       }, {
@@ -136,7 +135,7 @@ export async function POST(request: Request) {
       await supabase
         .from('onboarding_conversations')
         .upsert({
-          user_id: user.id,
+          user_id: sessionId,
           integrations_connected: [...currentIntegrations, integration],
         }, {
           onConflict: 'user_id'
@@ -144,7 +143,7 @@ export async function POST(request: Request) {
     } else if (action === 'action_completed') {
       const actionName = message;
       await supabase.from('user_onboarding_data').insert({
-        user_id: user.id,
+        user_id: sessionId,
         data_point: actionName,
         value: { completed: true, choice: choice || null },
       });
@@ -156,18 +155,18 @@ export async function POST(request: Request) {
     const { data: updatedConversation } = await supabase
       .from('onboarding_conversations')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', sessionId)
       .single();
 
     const { data: updatedCollected } = await supabase
       .from('user_onboarding_data')
       .select('*')
-      .eq('user_id', user.id);
+      .eq('user_id', sessionId);
 
     const { data: updatedIntegrations } = await supabase
       .from('user_integrations')
       .select('integration_name')
-      .eq('user_id', user.id);
+      .eq('user_id', sessionId);
 
     const updatedCollectedMap: Record<string, any> = {};
     updatedCollected?.forEach((item) => {
@@ -193,7 +192,7 @@ export async function POST(request: Request) {
 
     // Save AI message to chat
     await supabase.from('chat_messages').insert({
-      user_id: user.id,
+      user_id: sessionId,
       role: 'assistant',
       type: nextMessage.type,
       content: nextMessage.content,
@@ -208,7 +207,7 @@ export async function POST(request: Request) {
           status: 'complete',
           completed_at: new Date().toISOString(),
         })
-        .eq('user_id', user.id);
+        .eq('user_id', sessionId);
     }
 
     return NextResponse.json({ message: nextMessage });
@@ -220,18 +219,20 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { searchParams } = new URL(request.url);
+    const sessionId = searchParams.get('sessionId');
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!sessionId) {
+      return NextResponse.json({ error: 'Session ID required' }, { status: 400 });
     }
+
+    const supabase = await createClient();
 
     // Load chat history
     const { data: messages } = await supabase
       .from('chat_messages')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', sessionId)
       .order('timestamp', { ascending: true });
 
     return NextResponse.json({ messages: messages || [] });
