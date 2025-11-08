@@ -1,4 +1,44 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+
 export default function Home() {
+  const router = useRouter();
+
+  useEffect(() => {
+    checkAuthAndRedirect();
+  }, []);
+
+  const checkAuthAndRedirect = async () => {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        // User is authenticated, check verification status
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("verification_status")
+          .eq("user_id", user.id)
+          .single();
+
+        if (profile?.verification_status === "verified") {
+          // Already verified, go to chat
+          router.push("/onboard/chat");
+        } else {
+          // Not verified yet, go to Veriff
+          router.push("/onboard/verify");
+        }
+      }
+      // If not authenticated, stay on homepage
+    } catch (error) {
+      console.error("Auth check error:", error);
+      // On error, stay on homepage
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="text-center max-w-md px-6">
