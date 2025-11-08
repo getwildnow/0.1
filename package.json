@@ -6,13 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "create-magic-link": "node scripts/create-magic-link.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
     "@supabase/ssr": "^0.1.0",
     "@supabase/supabase-js": "^2.39.0",
     "clsx": "^2.1.0",
+    "dotenv": "^16.4.5",
     "lucide-react": "^0.344.0",
     "next": "^14.2.0",
     "openai": "^4.24.0",
