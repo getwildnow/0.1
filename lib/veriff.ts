@@ -83,6 +83,7 @@ class VeriffClient {
         callback: callbackUrl,
         person: {},
         vendorData: metadata?.session_id || undefined,
+        url: returnUrl, // Where to redirect user after verification
       },
     };
 
