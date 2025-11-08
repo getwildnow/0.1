@@ -194,14 +194,14 @@ export async function POST(request: NextRequest) {
   
   logger.info('User profile updated', { sessionId, status: profileData.verification_status });
 
-  // Update conversation state if verified
-  if (isApproved) {
-    const { error: convError } = await supabase.from('onboarding_conversations').upsert({
-      user_id: sessionId,
-      veriff_verified: true,
-      veriff_data: profileData,
-      status: 'verified',
-    });
+          // Update conversation state if verified
+          if (isApproved) {
+            const { error: convError } = await supabase.from('onboarding_conversations').upsert({
+              user_id: sessionId,
+              veriff_verified: true,
+              veriff_data: profileData,
+              status: 'verified',
+            } as any);
     
     if (convError) {
       logger.dbError('onboarding_conversations', 'upsert', convError);
