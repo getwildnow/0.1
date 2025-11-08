@@ -3,6 +3,7 @@
  */
 
 import { openai } from '@/lib/openai';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 export interface VeriffData {
   first_name?: string | null;
@@ -94,7 +95,7 @@ export async function generateAIResponse(
 ): Promise<string> {
   const systemPrompt = generateSystemPrompt(context.veriffData, context.dataPoints);
   
-  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+  const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
     ...context.messages.map(msg => ({
       role: msg.role,
