@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!sessionId) {
-    logger.error('Cannot find session ID', { 
+    logger.error('Cannot find session ID', null, { 
       veriffSessionId,
       eventKeys: Object.keys(event),
       bodyPreview: body.substring(0, 200)
