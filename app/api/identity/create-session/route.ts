@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         veriff_verification_session_id: session.id,
         verification_status: 'pending',
-      });
+      } as any);
 
     if (dbError) {
       logger.dbError('user_profiles', 'upsert', dbError);

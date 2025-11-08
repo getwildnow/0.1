@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         data_point: currentDataPoint,
         value: answer,
-      });
+      } as any);
       
       newlyCollectedDataPoint = currentDataPoint;
       collectedData[currentDataPoint] = answer;
