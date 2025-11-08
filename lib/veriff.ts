@@ -84,7 +84,6 @@ class VeriffClient {
         person: {},
         vendorData: metadata?.session_id || undefined,
       },
-      url: returnUrl, // Where to redirect user after verification (root level!)
     };
 
     const response = await this.request('/v1/sessions', {
