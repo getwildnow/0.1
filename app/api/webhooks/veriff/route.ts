@@ -100,10 +100,24 @@ export async function POST(request: Request) {
     fullVerification = event;
   }
 
+  // Log the FULL verification object for debugging
+  logger.info('Full Veriff verification data received', { 
+    veriffSessionId,
+    hasFullVerification: !!fullVerification,
+    fullVerificationKeys: fullVerification ? Object.keys(fullVerification) : [],
+    fullVerificationSample: JSON.stringify(fullVerification).substring(0, 500)
+  });
+
   // Extract person data from API response or webhook
   const person = fullVerification.person || event.person || {};
   const address = fullVerification.address || event.address || {};
   const document = fullVerification.document || event.document || {};
+  
+  logger.info('Extracted data structures', {
+    personKeys: Object.keys(person),
+    addressKeys: Object.keys(address),
+    documentKeys: Object.keys(document)
+  });
   
   // Parse date of birth
   let dob = null;
@@ -122,11 +136,15 @@ export async function POST(request: Request) {
   const zipCode = address.zipCode || addressParts[3] || null;
   const country = address.country || addressParts[4] || null;
 
+  // Extract email and phone (might be in person object or additionalData)
+  const email = person.email || fullVerification.email || event.email || null;
+  const phone = person.phone || person.phoneNumber || fullVerification.phone || event.phone || null;
+
   // Determine verification status
   const status = event.status || fullVerification.status || 'pending';
   const isApproved = status === 'approved' || status === 'success';
 
-  // Extract all data
+  // Extract ALL data
   const profileData = {
     veriff_verification_session_id: veriffSessionId,
     verification_status: isApproved ? 'verified' : status,
@@ -134,6 +152,8 @@ export async function POST(request: Request) {
     last_name: person.lastName || null,
     dob: dob,
     gender: person.gender || null,
+    email: email,
+    phone: phone,
     id_number: person.idNumber || document.number || null,
     document_type: document.type || null,
     address_line1: street || null,
@@ -142,9 +162,20 @@ export async function POST(request: Request) {
     state: state || null,
     postal_code: zipCode || null,
     country: country || person.nationality || null,
-    veriff_data: fullVerification as any,
+    veriff_data: fullVerification as any, // Store EVERYTHING as JSONB
     verified_at: isApproved ? new Date().toISOString() : null,
   };
+
+  logger.info('Prepared profile data for database', { 
+    sessionId,
+    hasFirstName: !!profileData.first_name,
+    hasLastName: !!profileData.last_name,
+    hasEmail: !!profileData.email,
+    hasPhone: !!profileData.phone,
+    hasDOB: !!profileData.dob,
+    hasAddress: !!profileData.address_line1,
+    status: profileData.verification_status
+  });
 
   // Save to user_profiles
   const { error: profileError } = await supabase.from('user_profiles').upsert({
