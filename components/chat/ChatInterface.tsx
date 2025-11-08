@@ -44,6 +44,7 @@ export default function ChatInterface() {
         const data = await response.json();
         if (data.messages && data.messages.length > 0) {
           setMessages(data.messages);
+          setInitialized(true);
         } else {
           // Start conversation
           startConversation();
@@ -99,6 +100,7 @@ export default function ChatInterface() {
             metadata: data.message.metadata,
             timestamp: new Date().toISOString(),
           }]);
+          setInitialized(true);
         }
       }
     } catch (error) {
