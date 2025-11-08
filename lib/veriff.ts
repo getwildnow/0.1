@@ -91,13 +91,14 @@ class VeriffClient {
       verification.vendorData = metadata.session_id;
     }
 
+    // Try MULTIPLE possible field names for redirect URL
+    // Different Veriff API versions use different field names
     const payload = { 
-      verification,
-      // This is where the user is redirected after completing verification
-      redirectUrl: returnUrl
+      verification
     };
 
     console.log('[Veriff] Creating session with payload:', JSON.stringify(payload, null, 2));
+    console.log('[Veriff] Return URL that should be configured in dashboard:', returnUrl);
 
     const response = await this.request('/v1/sessions', {
       method: 'POST',
