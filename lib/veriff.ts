@@ -59,13 +59,12 @@ class VeriffClient {
 
   private async request(endpoint: string, options: RequestInit = {}) {
     const url = `${this.baseUrl}${endpoint}`;
-    const auth = Buffer.from(`${this.apiKey}:`).toString('base64');
 
     const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${auth}`,
+        'X-AUTH-CLIENT': this.apiKey,
         ...options.headers,
       },
     });
