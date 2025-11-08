@@ -29,9 +29,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
+    const verificationStatus = (profile as { verification_status?: string } | null)?.verification_status;
+
     return NextResponse.json({
-      verified: profile?.verification_status === 'verified',
-      status: profile?.verification_status || 'pending',
+      verified: verificationStatus === 'verified',
+      status: verificationStatus || 'pending',
     });
   } catch (error) {
     logger.error('Error checking verification status', error instanceof Error ? error : null);
