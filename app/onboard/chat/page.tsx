@@ -35,20 +35,23 @@ function ChatPageContent() {
     setIsReady(true);
   };
 
-  // Poll database to wait for webhook to update profile
+  // Poll API to wait for webhook to update profile
   const pollForVerification = async (userId: string, maxAttempts = 15) => {
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
       
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("verification_status")
-        .eq("user_id", userId)
-        .single();
-      
-      if (profile?.verification_status === "verified") {
-        // Verification complete!
-        return;
+      try {
+        const response = await fetch(`/api/verify-status?sessionId=${userId}`);
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.verification_status === "verified") {
+            // Verification complete!
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Error checking verification status:", error);
       }
     }
     
