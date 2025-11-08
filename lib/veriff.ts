@@ -80,7 +80,10 @@ class VeriffClient {
   async createSession(callbackUrl: string, returnUrl: string, metadata?: Record<string, string>): Promise<VeriffSession> {
     const verification: any = {
       callback: callbackUrl,
-      person: {},
+      person: {
+        givenName: '',
+        lastName: ''
+      },
     };
 
     // Only include vendorData if it exists
@@ -88,12 +91,20 @@ class VeriffClient {
       verification.vendorData = metadata.session_id;
     }
 
-    const payload = { verification };
+    const payload = { 
+      verification,
+      // This is where the user is redirected after completing verification
+      redirectUrl: returnUrl
+    };
+
+    console.log('[Veriff] Creating session with payload:', JSON.stringify(payload, null, 2));
 
     const response = await this.request('/v1/sessions', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+
+    console.log('[Veriff] Session created. Response:', JSON.stringify(response, null, 2));
 
     return {
       id: response.verification.id,

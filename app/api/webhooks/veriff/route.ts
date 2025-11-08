@@ -3,6 +3,24 @@ import { createServiceRoleClient } from '@/lib/supabase/service';
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { logger } from '@/lib/logger';
+import { redirect } from 'next/navigation';
+
+// Handle GET requests (user redirect from Veriff) - redirect to chat
+export async function GET(request: Request) {
+  logger.warn('User redirected to webhook endpoint via GET - redirecting to chat');
+  
+  // Extract session from URL if present
+  const url = new URL(request.url);
+  const sessionParam = url.searchParams.get('session') || url.searchParams.get('vendorData');
+  
+  // Redirect to chat with session if available
+  if (sessionParam) {
+    return NextResponse.redirect(new URL(`/onboard/chat?session=${sessionParam}`, url.origin));
+  }
+  
+  // Otherwise redirect to homepage to start over
+  return NextResponse.redirect(new URL('/onboard/verify', url.origin));
+}
 
 export async function POST(request: Request) {
   logger.serviceCall('veriff', 'webhook_received');
