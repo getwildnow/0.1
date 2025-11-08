@@ -80,10 +80,8 @@ class VeriffClient {
   async createSession(callbackUrl: string, returnUrl: string, metadata?: Record<string, string>): Promise<VeriffSession> {
     const verification: any = {
       callback: callbackUrl,
-      person: {
-        givenName: '',
-        lastName: ''
-      },
+      // Don't send empty person object - causes "invalid parameters" error
+      person: {},
     };
 
     // Only include vendorData if it exists
@@ -91,14 +89,13 @@ class VeriffClient {
       verification.vendorData = metadata.session_id;
     }
 
-    // Try MULTIPLE possible field names for redirect URL
-    // Different Veriff API versions use different field names
     const payload = { 
       verification
     };
 
     console.log('[Veriff] Creating session with payload:', JSON.stringify(payload, null, 2));
-    console.log('[Veriff] Return URL that should be configured in dashboard:', returnUrl);
+    console.log('[Veriff] Callback URL (for webhook):', callbackUrl);
+    console.log('[Veriff] Return URL (configured in dashboard):', returnUrl);
 
     const response = await this.request('/v1/sessions', {
       method: 'POST',
