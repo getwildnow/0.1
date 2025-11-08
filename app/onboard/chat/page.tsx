@@ -17,10 +17,11 @@ function ChatPageContent() {
   }, []);
 
   const checkVerification = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    // Get session ID from URL
+    const sessionId = searchParams.get("session");
     
-    if (!user) {
-      // No user, redirect to start
+    if (!sessionId) {
+      // No session, redirect to start
       router.push("/");
       return;
     }
@@ -31,7 +32,7 @@ function ChatPageContent() {
     if (justVerified) {
       // Wait for webhook to process
       setIsVerifying(true);
-      await pollForVerification(user.id);
+      await pollForVerification(sessionId);
       setIsVerifying(false);
     }
     

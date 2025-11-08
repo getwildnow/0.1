@@ -14,21 +14,7 @@ export default function VerifyPage() {
 
   const createVerificationSession = async () => {
     try {
-      // Get or create an anonymous user
-      let { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        // Create an anonymous user
-        const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
-        if (authError) throw authError;
-        user = authData.user;
-      }
-
-      if (!user) {
-        throw new Error("Failed to create user session");
-      }
-
-      // Create Veriff session
+      // Create Veriff session directly (no auth needed)
       const response = await fetch("/api/identity/create-session", {
         method: "POST",
       });

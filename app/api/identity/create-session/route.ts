@@ -1,21 +1,17 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/service';
 import { veriff } from '@/lib/veriff';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { randomBytes } from 'crypto';
 
 export async function POST(request: Request) {
   try {
     logger.apiRequest('POST', '/api/identity/create-session');
     
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      logger.warn('Unauthorized access to create-session');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Generate a unique session ID for tracking (no auth required)
+    const sessionId = randomBytes(16).toString('hex');
     
-    logger.info('Creating Veriff session', { userId: user.id });
+    logger.info('Creating Veriff session', { sessionId });
 
     // Get the base URL - prioritize RENDER_EXTERNAL_URL for production
     const baseUrl = process.env.RENDER_EXTERNAL_URL 
@@ -31,26 +27,27 @@ export async function POST(request: Request) {
 
     // Create Veriff verification session
     const callbackUrl = `${origin}/api/webhooks/veriff`;
-    const returnUrl = `${origin}/onboard/chat?verified=true`;
+    const returnUrl = `${origin}/onboard/chat?session=${sessionId}&verified=true`;
     
     const session = await veriff.createSession(callbackUrl, returnUrl, {
-      user_id: user.id,
+      session_id: sessionId,
     });
     
-    logger.info('Veriff session created', { userId: user.id, sessionId: session.id });
+    logger.info('Veriff session created', { sessionId, veriffSessionId: session.id });
 
-    // Save session ID to user profile
+    // Store temporary session mapping (no user needed yet)
+    const supabase = createServiceRoleClient();
     const { error: dbError } = await supabase
       .from('user_profiles')
-      .upsert({
-        user_id: user.id,
+      .insert({
+        user_id: sessionId, // Use sessionId as temporary user_id
         veriff_verification_session_id: session.id,
         verification_status: 'pending',
       });
       
     if (dbError) {
-      logger.dbError('user_profiles', 'upsert', dbError);
-      throw dbError;
+      logger.dbError('user_profiles', 'insert', dbError);
+      // Continue anyway - we can still verify
     }
 
     logger.apiSuccess('POST', '/api/identity/create-session');
