@@ -1,13 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
-import { stripe } from '@/lib/stripe'
+import { getStripeClient } from '@/lib/stripe'
 import { createAdminSupabaseClient } from '@/lib/supabase/server'
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
-
 export async function POST(request: NextRequest) {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+
+  if (!webhookSecret) {
+    console.error('Stripe webhook secret is not configured')
+    return NextResponse.json(
+      { error: 'Stripe webhook secret is not configured' },
+      { status: 500 }
+    )
+  }
+
+  const stripe = getStripeClient()
+
+  if (!stripe) {
+    console.error('Stripe secret key is not configured')
+    return NextResponse.json(
+      { error: 'Stripe secret key is not configured' },
+      { status: 500 }
+    )
+  }
+
   const body = await request.text()
-  const signature = (await headers()).get('stripe-signature')!
+  const signature = (await headers()).get('stripe-signature')
+
+  if (!signature) {
+    return NextResponse.json(
+      { error: 'Missing Stripe signature header' },
+      { status: 400 }
+    )
+  }
 
   let event: any
 

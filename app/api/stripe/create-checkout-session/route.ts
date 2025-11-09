@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe, PRICE_PER_EMPLOYEE, CURRENCY } from '@/lib/stripe'
+import { getStripeClient, PRICE_PER_EMPLOYEE, CURRENCY } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
@@ -26,6 +26,16 @@ export async function POST(request: NextRequest) {
 
     // Calculate amount
     const amount = PRICE_PER_EMPLOYEE * employeeCount
+
+    const stripe = getStripeClient()
+
+    if (!stripe) {
+      console.error('Stripe secret key is not configured')
+      return NextResponse.json(
+        { error: 'Checkout is temporarily unavailable' },
+        { status: 500 }
+      )
+    }
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
+import { getStripeClient } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
@@ -37,6 +37,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'No active subscription found' },
         { status: 404 }
+      )
+    }
+
+    const stripe = getStripeClient()
+
+    if (!stripe) {
+      console.error('Stripe secret key is not configured')
+      return NextResponse.json(
+        { error: 'Billing portal unavailable' },
+        { status: 500 }
       )
     }
 
