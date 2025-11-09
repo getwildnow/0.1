@@ -29,7 +29,7 @@ export default function EmployeesPage() {
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="btn-primary"
+          className="bg-[#1b1d1a] px-4 py-2 rounded-xl text-white hover:bg-[#0e1414] transition-colors"
         >
           Add Employee
         </button>
@@ -100,52 +100,52 @@ export default function EmployeesPage() {
       {/* Add Employee Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center px-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-brand-black mb-4">Add New Employee</h2>
-            <form className="space-y-4">
+          <div className="bg-white rounded-lg max-w-sm w-full p-5">
+            <h2 className="text-lg font-semibold text-brand-black mb-3">Add Employee</h2>
+            <form className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-brand-dark mb-1">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  className="w-full px-3 py-2 border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-brand-green focus:border-brand-green"
-                  placeholder="employee@company.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-brand-dark mb-1">
-                  Full Name
+                <label className="block text-xs font-medium text-brand-dark mb-1">
+                  Name
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-brand-green focus:border-brand-green"
+                  className="w-full px-3 py-1.5 text-sm border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green focus:border-brand-green"
                   placeholder="John Doe"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-brand-dark mb-1">
-                  Role/Title
+                <label className="block text-xs font-medium text-brand-dark mb-1">
+                  Role
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-brand-green focus:border-brand-green"
+                  className="w-full px-3 py-1.5 text-sm border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green focus:border-brand-green"
                   placeholder="Software Engineer"
                 />
               </div>
-              <div className="flex justify-end space-x-3 pt-4">
+              <div>
+                <label className="block text-xs font-medium text-brand-dark mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  className="w-full px-3 py-1.5 text-sm border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green focus:border-brand-green"
+                  placeholder="employee@company.com"
+                />
+              </div>
+              <div className="flex justify-end space-x-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-brand-dark hover:text-brand-black"
+                  className="px-3 py-1.5 text-sm text-brand-dark hover:text-brand-black"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn-primary"
+                  className="bg-[#1b1d1a] px-4 py-1.5 text-sm rounded-lg text-white hover:bg-[#0e1414] transition-colors"
                 >
-                  Add Employee
+                  Add
                 </button>
               </div>
             </form>

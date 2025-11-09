@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
@@ -19,15 +20,15 @@ const kpis = [
     name: 'Total Employees',
     value: '75',
     icon: UserGroupIcon,
-    change: '+5 this month',
-    changeType: 'increase',
+    change: '',
+    changeType: 'neutral',
   },
   {
     name: 'Active Wearables',
     value: '70',
     icon: CubeTransparentIcon,
-    change: '93% adoption',
-    changeType: 'increase',
+    change: '',
+    changeType: 'neutral',
   },
   {
     name: 'Monthly Premium',
@@ -85,6 +86,10 @@ const employees = [
 ];
 
 export default function EmployerDashboard() {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [sortBy, setSortBy] = useState('Name');
+
   return (
     <div className="p-8 bg-[#F9F9F9] min-h-screen text-brand-black">
       <header className="mb-8">
@@ -105,19 +110,13 @@ export default function EmployerDashboard() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-brand-gray truncate">{kpi.name}</dt>
-                  <dd className="flex items-baseline">
+                  <dd className="flex flex-col">
                     <p className="text-2xl font-semibold text-brand-darkest">{kpi.value}</p>
-                    <p
-                      className={`ml-2 flex items-baseline text-sm font-semibold ${
-                        kpi.changeType === 'increase'
-                          ? 'text-green-600'
-                          : kpi.changeType === 'decrease'
-                          ? 'text-red-600'
-                          : 'text-gray-500'
-                      }`}
-                    >
-                      {kpi.change}
-                    </p>
+                    {kpi.change && (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {kpi.change}
+                      </p>
+                    )}
                   </dd>
                 </dl>
               </div>
@@ -138,7 +137,8 @@ export default function EmployerDashboard() {
           <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
             <button
               type="button"
-              className="inline-flex items-center rounded-md border border-transparent bg-brand-green px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-green-light focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2"
+              onClick={() => setShowAddModal(true)}
+              className="bg-[#1b1d1a] px-4 py-2 rounded-xl text-white hover:bg-[#0e1414] transition-colors inline-flex items-center"
             >
               <PlusIcon className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
               Add Employee
@@ -160,11 +160,36 @@ export default function EmployerDashboard() {
               placeholder="Search by Name, Email..."
             />
           </div>
-          <div>
-            <button className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-brand-gray shadow-sm hover:bg-gray-50">
-              <span>Sort by: Name</span>
+          <div className="relative">
+            <button 
+              onClick={() => setShowSortMenu(!showSortMenu)}
+              className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-brand-gray shadow-sm hover:bg-gray-50"
+            >
+              <span>Sort by: {sortBy}</span>
               <ChevronDownIcon className="ml-2 h-5 w-5" aria-hidden="true" />
             </button>
+            {showSortMenu && (
+              <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                <button
+                  onClick={() => {
+                    setSortBy('Name');
+                    setShowSortMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-brand-dark hover:bg-gray-50"
+                >
+                  Name
+                </button>
+                <button
+                  onClick={() => {
+                    setSortBy('Status');
+                    setShowSortMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-brand-dark hover:bg-gray-50"
+                >
+                  Status
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -237,6 +262,62 @@ export default function EmployerDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Add Employee Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center px-4 z-50">
+          <div className="bg-white rounded-lg max-w-sm w-full p-5">
+            <h2 className="text-lg font-semibold text-brand-black mb-3">Add Employee</h2>
+            <form className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-brand-dark mb-1">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-1.5 text-sm border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green focus:border-brand-green"
+                  placeholder="John Doe"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-brand-dark mb-1">
+                  Role
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-1.5 text-sm border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green focus:border-brand-green"
+                  placeholder="Software Engineer"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-brand-dark mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  className="w-full px-3 py-1.5 text-sm border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green focus:border-brand-green"
+                  placeholder="employee@company.com"
+                />
+              </div>
+              <div className="flex justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-3 py-1.5 text-sm text-brand-dark hover:text-brand-black"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-[#1b1d1a] px-4 py-1.5 text-sm rounded-lg text-white hover:bg-[#0e1414] transition-colors"
+                >
+                  Send invite link
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

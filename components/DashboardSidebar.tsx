@@ -55,18 +55,8 @@ export function DashboardSidebar({ links, isCollapsed, toggleSidebar }: Dashboar
         })}
       </nav>
       <div className="mt-auto">
-        <button 
-          onClick={toggleSidebar}
-          className={`
-            w-full flex items-center gap-x-4 px-4 py-2.5 rounded-lg text-sm font-medium text-brand-gray hover:bg-brand-dark hover:text-brand-cream
-            ${isCollapsed ? 'justify-center' : ''}
-          `}
-        >
-          <CollapseIcon isCollapsed={isCollapsed} />
-          <span className={`${isCollapsed ? 'hidden' : 'block'}`}>Collapse</span>
-        </button>
         <button className={`
-          w-full flex items-center gap-x-4 px-4 py-2.5 rounded-lg text-sm font-medium text-brand-gray text-left hover:bg-brand-dark hover:text-brand-cream mt-2
+          w-full flex items-center gap-x-4 px-4 py-2.5 rounded-lg text-sm font-medium text-brand-gray text-left hover:bg-brand-dark hover:text-brand-cream
           ${isCollapsed ? 'justify-center' : ''}
         `}>
           <LogoutIcon />

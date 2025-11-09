@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { DashboardLayout } from '@/components/DashboardLayout'
 
 export default function EmployerDashboardLayout({
@@ -7,11 +9,19 @@ export default function EmployerDashboardLayout({
 }: {
   children: React.ReactNode
 }) {
+  const router = useRouter()
+
+  useEffect(() => {
+    // Check if user is logged in
+    const founderId = localStorage.getItem('founderId')
+    if (!founderId) {
+      router.push('/signup')
+    }
+  }, [router])
+
   const links = [
     { name: 'Overview', href: '/employer/dashboard', icon: <HomeIcon /> },
-    { name: 'Employees', href: '/employer/dashboard/employees', icon: <UsersIcon /> },
     { name: 'Billing', href: '/employer/dashboard/billing', icon: <CreditCardIcon /> },
-    { name: 'Settings', href: '/employer/dashboard/settings', icon: <CogIcon /> },
   ]
 
   return (
