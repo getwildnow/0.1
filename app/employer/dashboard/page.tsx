@@ -89,6 +89,49 @@ export default function EmployerDashboard() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [sortBy, setSortBy] = useState('Name');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const chatGPTPrompt = `Create a CSV file with employee data for bulk upload. The CSV should have exactly 3 columns: Name, Role, Email. Include 5-10 sample employees with realistic data. Format:
+
+Name,Role,Email
+John Doe,Software Engineer,john.doe@company.com
+Jane Smith,Product Manager,jane.smith@company.com
+
+Make sure the first row is the header row.`;
+
+  const handleCopyPrompt = () => {
+    navigator.clipboard.writeText(chatGPTPrompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file && (file.type === 'text/csv' || file.name.endsWith('.csv'))) {
+      setUploadedFile(file);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadedFile(file);
+    }
+  };
 
   return (
     <div className="p-8 bg-[#F9F9F9] min-h-screen text-brand-black">
@@ -266,55 +309,85 @@ export default function EmployerDashboard() {
       {/* Add Employee Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center px-4 z-50">
-          <div className="bg-white rounded-lg max-w-sm w-full p-5">
-            <h2 className="text-lg font-semibold text-brand-black mb-3">Add Employee</h2>
-            <form className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-brand-dark mb-1">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-1.5 text-sm border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green focus:border-brand-green"
-                  placeholder="John Doe"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-brand-dark mb-1">
-                  Role
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-1.5 text-sm border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green focus:border-brand-green"
-                  placeholder="Software Engineer"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-brand-dark mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  className="w-full px-3 py-1.5 text-sm border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green focus:border-brand-green"
-                  placeholder="employee@company.com"
-                />
-              </div>
-              <div className="flex justify-end space-x-2 pt-2">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-brand-black">Add Employees</h2>
+              <button
+                onClick={handleCopyPrompt}
+                className="text-xs text-brand-gray hover:text-brand-dark flex items-center gap-1"
+                title="Copy ChatGPT prompt"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                {copied ? 'Copied!' : ''}
+              </button>
+            </div>
+
+            {/* File Upload Area */}
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                isDragging
+                  ? 'border-brand-green bg-brand-cream'
+                  : 'border-brand-gray/30 hover:border-brand-gray/50'
+              }`}
+            >
+              <input
+                type="file"
+                id="file-upload"
+                accept=".csv"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <label htmlFor="file-upload" className="cursor-pointer">
+                <div className="flex flex-col items-center">
+                  <svg className="w-10 h-10 text-brand-gray mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <p className="text-sm text-brand-dark font-medium mb-1">
+                    {uploadedFile ? uploadedFile.name : 'Drop CSV file here or click to browse'}
+                  </p>
+                  <p className="text-xs text-brand-gray">
+                    CSV with Name, Role, Email columns
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {uploadedFile && (
+              <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
+                <span className="text-xs text-green-800">{uploadedFile.name}</span>
                 <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-3 py-1.5 text-sm text-brand-dark hover:text-brand-black"
+                  onClick={() => setUploadedFile(null)}
+                  className="text-xs text-green-600 hover:text-green-800"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="bg-[#1b1d1a] px-4 py-1.5 text-sm rounded-lg text-white hover:bg-[#0e1414] transition-colors"
-                >
-                  Send invite link
+                  Remove
                 </button>
               </div>
-            </form>
+            )}
+
+            <div className="flex justify-end space-x-2 mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddModal(false);
+                  setUploadedFile(null);
+                }}
+                className="px-3 py-1.5 text-sm text-brand-dark hover:text-brand-black"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!uploadedFile}
+                className="bg-[#1b1d1a] px-4 py-1.5 text-sm rounded-lg text-white hover:bg-[#0e1414] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Send invite links
+              </button>
+            </div>
           </div>
         </div>
       )}
