@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { StripeCheckout } from '@/components/StripeCheckout'
 
 interface Invoice {
@@ -13,17 +12,18 @@ interface Invoice {
 }
 
 export default function BillingPage() {
-  const searchParams = useSearchParams()
   const [showSuccess, setShowSuccess] = useState(false)
   const [isSubscribed, setIsSubscribed] = useState(true) // In real app, check from database
 
   useEffect(() => {
-    if (searchParams.get('success') === 'true') {
+    const params = new URLSearchParams(window.location.search)
+
+    if (params.get('success') === 'true') {
       setShowSuccess(true)
       setIsSubscribed(true)
       setTimeout(() => setShowSuccess(false), 5000)
     }
-  }, [searchParams])
+  }, [])
 
   const handleManageBilling = async () => {
     try {
