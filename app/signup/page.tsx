@@ -70,7 +70,7 @@ export default function SignUpPage() {
         <div>
           <img className="mx-auto h-12 w-auto" src="https://www.figma.com/api/mcp/asset/6368c286-c151-422f-9597-9b0fdc19ea03" alt="Get Wild" />
           <h2 className="mt-6 text-center text-3xl font-semibold text-brand-black">
-            {step === 1 ? 'Create an account' : 'Tell us about you'}
+            Create an account
           </h2>
           {step === 2 && (
             <p className="mt-2 text-center text-sm text-brand-gray">
