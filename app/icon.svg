@@ -1,8 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#11120D"/>
-  <path
-    fill="#FFFFFF"
-    d="M64 128h148l44 176 44-176h148l-96 256H160L64 128Z"
-  />
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="3000" height="3000" viewBox="0 0 2250 2250.000011" preserveAspectRatio="xMidYMid meet" version="1.0">
+  <defs>
+    <clipPath id="clip-bg">
+      <path d="M 0.5 0 L 2249.5 0 L 2249.5 2249 L 0.5 2249 Z M 0.5 0 " clip-rule="nonzero"/>
+    </clipPath>
+    <clipPath id="clip-w">
+      <rect x="0" width="2175" y="0" height="1985"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#clip-bg)">
+    <path fill="#0e1414" d="M 0.5 0 L 2249.5 0 L 2249.5 2249 L 0.5 2249 Z M 0.5 0 " fill-opacity="1" fill-rule="nonzero"/>
+  </g>
+  <g transform="matrix(1, 0, 0, 1, 38, 132)" clip-path="url(#clip-w)" fill="#ffffff">
+    <g transform="translate(28.425162, 1568.187044)">
+      <path d="M 357.265625 0 L -9.921875 -1157.796875 L 469.734375 -1157.796875 L 654.984375 -501.15625 L 843.546875 -1157.796875 L 1273.578125 -1157.796875 L 1458.828125 -473.046875 L 1654 -1157.796875 L 2127.046875 -1157.796875 L 1759.859375 0 L 1212.375 0 L 1058.5625 -568.96875 L 894.8125 0 Z"/>
+    </g>
+  </g>
 </svg>
 
