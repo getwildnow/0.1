@@ -133,14 +133,17 @@ ALTER TABLE consents ENABLE ROW LEVEL SECURITY;
 -- CONFIG TABLE: Allow anyone to read/write
 -- (Admin panel needs this)
 -- ============================================
+DROP POLICY IF EXISTS "Anyone can view config" ON onboarding_config;
 CREATE POLICY "Anyone can view config"
   ON onboarding_config FOR SELECT
   USING (true);
 
+DROP POLICY IF EXISTS "Anyone can update config" ON onboarding_config;
 CREATE POLICY "Anyone can update config"
   ON onboarding_config FOR UPDATE
   USING (true);
 
+DROP POLICY IF EXISTS "Anyone can insert config" ON onboarding_config;
 CREATE POLICY "Anyone can insert config"
   ON onboarding_config FOR INSERT
   WITH CHECK (true);
@@ -151,49 +154,59 @@ CREATE POLICY "Anyone can insert config"
 -- ============================================
 
 -- User Profiles
+DROP POLICY IF EXISTS "Users can view own profile" ON user_profiles;
 CREATE POLICY "Users can view own profile"
   ON user_profiles FOR SELECT
   USING (auth.uid()::text = user_id OR user_id = current_setting('app.session_id', true));
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON user_profiles;
 CREATE POLICY "Users can insert own profile"
   ON user_profiles FOR INSERT
   WITH CHECK (auth.uid()::text = user_id OR user_id = current_setting('app.session_id', true));
 
+DROP POLICY IF EXISTS "Users can update own profile" ON user_profiles;
 CREATE POLICY "Users can update own profile"
   ON user_profiles FOR UPDATE
   USING (auth.uid()::text = user_id OR user_id = current_setting('app.session_id', true))
   WITH CHECK (auth.uid()::text = user_id OR user_id = current_setting('app.session_id', true));
 
 -- Onboarding Conversations
+DROP POLICY IF EXISTS "Users can view own conversations" ON onboarding_conversations;
 CREATE POLICY "Users can view own conversations"
   ON onboarding_conversations FOR SELECT
   USING (auth.uid()::text = user_id OR user_id = current_setting('app.session_id', true));
 
+DROP POLICY IF EXISTS "Users can insert own conversations" ON onboarding_conversations;
 CREATE POLICY "Users can insert own conversations"
   ON onboarding_conversations FOR INSERT
   WITH CHECK (auth.uid()::text = user_id OR user_id = current_setting('app.session_id', true));
 
+DROP POLICY IF EXISTS "Users can update own conversations" ON onboarding_conversations;
 CREATE POLICY "Users can update own conversations"
   ON onboarding_conversations FOR UPDATE
   USING (auth.uid()::text = user_id OR user_id = current_setting('app.session_id', true))
   WITH CHECK (auth.uid()::text = user_id OR user_id = current_setting('app.session_id', true));
 
 -- User Onboarding Data
+DROP POLICY IF EXISTS "Users can manage own onboarding data" ON user_onboarding_data;
 CREATE POLICY "Users can manage own onboarding data"
   ON user_onboarding_data FOR ALL
   USING (auth.uid()::text = user_id OR user_id = current_setting('app.session_id', true));
 
 -- User Integrations
+DROP POLICY IF EXISTS "Users can manage own integrations" ON user_integrations;
 CREATE POLICY "Users can manage own integrations"
   ON user_integrations FOR ALL
   USING (auth.uid()::text = user_id OR user_id = current_setting('app.session_id', true));
 
 -- Chat Messages
+DROP POLICY IF EXISTS "Users can manage own chat messages" ON chat_messages;
 CREATE POLICY "Users can manage own chat messages"
   ON chat_messages FOR ALL
   USING (auth.uid()::text = user_id OR user_id = current_setting('app.session_id', true));
 
 -- Consents
+DROP POLICY IF EXISTS "Users can manage own consents" ON consents;
 CREATE POLICY "Users can manage own consents"
   ON consents FOR ALL
   USING (auth.uid()::text = user_id OR user_id = current_setting('app.session_id', true));
