@@ -24,7 +24,16 @@ export async function POST(request: NextRequest) {
       .eq('id', companyId)
       .single()
 
-    if (error || !company?.stripe_customer_id) {
+    if (error || !company) {
+      return NextResponse.json(
+        { error: 'No active subscription found' },
+        { status: 404 }
+      )
+    }
+
+    const stripeCustomerId = (company as any).stripe_customer_id
+
+    if (!stripeCustomerId) {
       return NextResponse.json(
         { error: 'No active subscription found' },
         { status: 404 }
@@ -33,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     // Create billing portal session
     const session = await stripe.billingPortal.sessions.create({
-      customer: company.stripe_customer_id,
+      customer: stripeCustomerId,
       return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/employer/dashboard/billing`,
     })
 

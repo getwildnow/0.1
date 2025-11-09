@@ -29,10 +29,10 @@ export async function POST(request: NextRequest) {
       const { companyId, employeeCount } = session.metadata
 
       // Update company with Stripe customer ID and subscription status
-      await supabase
+      await (supabase
         .from('companies')
-        .update({
-          stripe_customer_id: session.customer,
+        .update as any)({
+          stripe_customer_id: session.customer as string,
           subscription_status: 'active',
           employee_count: parseInt(employeeCount),
         })
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       const invoice = event.data.object
       
       // Create invoice record
-      await supabase.from('invoices').insert({
+      await (supabase.from('invoices').insert as any)({
         stripe_invoice_id: invoice.id,
         stripe_payment_intent_id: invoice.payment_intent,
         amount: invoice.amount_paid / 100, // Convert from cents
@@ -66,9 +66,9 @@ export async function POST(request: NextRequest) {
                      subscription.status === 'past_due' ? 'past_due' : 
                      'canceled'
 
-      await supabase
+      await (supabase
         .from('companies')
-        .update({ subscription_status: status })
+        .update as any)({ subscription_status: status })
         .eq('stripe_customer_id', customerId)
 
       break
@@ -79,9 +79,9 @@ export async function POST(request: NextRequest) {
       const customerId = subscription.customer
 
       // Mark subscription as canceled
-      await supabase
+      await (supabase
         .from('companies')
-        .update({ subscription_status: 'canceled' })
+        .update as any)({ subscription_status: 'canceled' })
         .eq('stripe_customer_id', customerId)
 
       break

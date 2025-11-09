@@ -8,20 +8,16 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'brand': {
-          'cream': '#FFFAF4',
-          'gray': '#989795',
-          'charcoal': '#333333',
-          'dark': '#1B1D1A',
-          'black': '#11120D',
-          'yellow': '#F8D794',
-          'green': '#809076',
-          'teal': '#243132'
-        }
-      },
-      fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-      },
+        'brand-cream': '#FFFAF4',
+        'brand-gray-light': '#989795',
+        'brand-gray': '#7b7b7b',
+        'brand-dark': '#333333',
+        'brand-black': '#1B1D1A',
+        'brand-darkest': '#11120D',
+        'brand-yellow': '#F8D794',
+        'brand-green-light': '#809076',
+        'brand-green': '#243132',
+      }
     },
   },
   plugins: [],

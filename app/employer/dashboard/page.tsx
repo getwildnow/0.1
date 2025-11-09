@@ -1,153 +1,242 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
+import {
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
+  BuildingOfficeIcon,
+  CheckCircleIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CubeTransparentIcon,
+  PlusIcon,
+  UserGroupIcon,
+  CurrencyDollarIcon,
+  DocumentTextIcon,
+} from '@heroicons/react/24/outline';
+
+const kpis = [
+  {
+    name: 'Total Employees',
+    value: '75',
+    icon: UserGroupIcon,
+    change: '+5 this month',
+    changeType: 'increase',
+  },
+  {
+    name: 'Active Wearables',
+    value: '70',
+    icon: CubeTransparentIcon,
+    change: '93% adoption',
+    changeType: 'increase',
+  },
+  {
+    name: 'Monthly Premium',
+    value: '$56,250',
+    icon: CurrencyDollarIcon,
+    change: 'for November',
+    changeType: 'neutral',
+  },
+  {
+    name: 'Recent Claims',
+    value: '3',
+    icon: DocumentTextIcon,
+    change: 'in last 30 days',
+    changeType: 'neutral',
+  },
+];
+
+const employees = [
+  {
+    name: 'Lindsay Walton',
+    title: 'Frontend Developer',
+    email: 'lindsay.walton@example.com',
+    wearable: 'Oura Ring',
+    status: 'Connected',
+    image:
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  },
+  {
+    name: 'Courtney Henry',
+    title: 'Designer',
+    email: 'courtney.henry@example.com',
+    wearable: 'Whoop',
+    status: 'Connected',
+    image:
+      'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  },
+  {
+    name: 'Tom Cook',
+    title: 'Director of Product',
+    email: 'tom.cook@example.com',
+    wearable: 'None',
+    status: 'Pending Invite',
+    image:
+      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  },
+  {
+    name: 'Whitney Francis',
+    title: 'Copywriter',
+    email: 'whitney.francis@example.com',
+    wearable: 'Oura Ring',
+    status: 'Connected',
+    image:
+      'https://images.unsplash.com/photo-1517365830460-955ce3ccd263?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  },
+];
 
 export default function EmployerDashboard() {
-  const [stats, setStats] = useState({
-    totalEmployees: 0,
-    activeEmployees: 0,
-    pendingClaims: 0,
-    monthlyPremium: 0,
-  })
-
-  // In a real app, this would fetch from the database
-  useEffect(() => {
-    setStats({
-      totalEmployees: 45,
-      activeEmployees: 43,
-      pendingClaims: 3,
-      monthlyPremium: 33750, // $750 * 45 employees
-    })
-  }, [])
-
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-brand-black">Dashboard Overview</h1>
-        <p className="text-brand-gray mt-1">Welcome back! Here's your company's health insurance overview.</p>
+    <div className="p-8 bg-[#F9F9F9] min-h-screen text-brand-black">
+      <header className="mb-8">
+        <h1 className="text-3xl font-semibold text-brand-darkest">Your Dashboard</h1>
+        <p className="text-brand-gray">
+          Manage your team and view key health metrics.
+        </p>
+      </header>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        {kpis.map((kpi) => (
+          <div key={kpi.name} className="bg-white p-6 rounded-lg border border-gray-200">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <kpi.icon className="h-6 w-6 text-brand-gray" aria-hidden="true" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-brand-gray truncate">{kpi.name}</dt>
+                  <dd className="flex items-baseline">
+                    <p className="text-2xl font-semibold text-brand-darkest">{kpi.value}</p>
+                    <p
+                      className={`ml-2 flex items-baseline text-sm font-semibold ${
+                        kpi.changeType === 'increase'
+                          ? 'text-green-600'
+                          : kpi.changeType === 'decrease'
+                          ? 'text-red-600'
+                          : 'text-gray-500'
+                      }`}
+                    >
+                      {kpi.change}
+                    </p>
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="card">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-brand-green/10 rounded-lg p-3">
-              <svg className="h-6 w-6 text-brand-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-brand-gray">Total Employees</p>
-              <p className="text-2xl font-bold text-brand-black">{stats.totalEmployees}</p>
-            </div>
+      {/* Main Content */}
+      <div className="bg-white p-6 rounded-lg border border-gray-200">
+        <div className="sm:flex sm:items-center sm:justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-semibold text-brand-darkest">Team Members</h2>
+            <p className="mt-1 text-sm text-brand-gray">
+              A list of all employees in your company.
+            </p>
           </div>
-        </div>
-
-        <div className="card">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-brand-yellow/10 rounded-lg p-3">
-              <svg className="h-6 w-6 text-brand-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-brand-gray">Active Coverage</p>
-              <p className="text-2xl font-bold text-brand-black">{stats.activeEmployees}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-brand-teal/10 rounded-lg p-3">
-              <svg className="h-6 w-6 text-brand-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-brand-gray">Pending Claims</p>
-              <p className="text-2xl font-bold text-brand-black">{stats.pendingClaims}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-brand-charcoal/10 rounded-lg p-3">
-              <svg className="h-6 w-6 text-brand-charcoal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-brand-gray">Monthly Premium</p>
-              <p className="text-2xl font-bold text-brand-black">${stats.monthlyPremium.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card">
-          <h2 className="text-xl font-bold text-brand-black mb-4">Quick Actions</h2>
-          <div className="space-y-3">
-            <a
-              href="/employer/dashboard/employees"
-              className="flex items-center justify-between p-3 bg-brand-cream rounded-lg hover:bg-brand-gray/10 transition-colors"
+          <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+            <button
+              type="button"
+              className="inline-flex items-center rounded-md border border-transparent bg-brand-green px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-green-light focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2"
             >
-              <span className="font-medium text-brand-dark">Add New Employee</span>
-              <svg className="h-5 w-5 text-brand-gray" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </a>
-            <a
-              href="/employer/dashboard/billing"
-              className="flex items-center justify-between p-3 bg-brand-cream rounded-lg hover:bg-brand-gray/10 transition-colors"
-            >
-              <span className="font-medium text-brand-dark">View Billing History</span>
-              <svg className="h-5 w-5 text-brand-gray" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </a>
-            <a
-              href="/employer/dashboard/settings"
-              className="flex items-center justify-between p-3 bg-brand-cream rounded-lg hover:bg-brand-gray/10 transition-colors"
-            >
-              <span className="font-medium text-brand-dark">Update Company Info</span>
-              <svg className="h-5 w-5 text-brand-gray" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </a>
+              <PlusIcon className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
+              Add Employee
+            </button>
           </div>
         </div>
 
-        <div className="card">
-          <h2 className="text-xl font-bold text-brand-black mb-4">Recent Activity</h2>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-brand-cream rounded-lg">
-              <div>
-                <p className="font-medium text-brand-dark">New employee added</p>
-                <p className="text-sm text-brand-gray">John Smith joined the team</p>
-              </div>
-              <span className="text-sm text-brand-gray">2 days ago</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-brand-cream rounded-lg">
-              <div>
-                <p className="font-medium text-brand-dark">Claim approved</p>
-                <p className="text-sm text-brand-gray">Sarah Johnson's claim processed</p>
-              </div>
-              <span className="text-sm text-brand-gray">3 days ago</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-brand-cream rounded-lg">
-              <div>
-                <p className="font-medium text-brand-dark">Monthly invoice paid</p>
-                <p className="text-sm text-brand-gray">November payment successful</p>
-              </div>
-              <span className="text-sm text-brand-gray">5 days ago</span>
-            </div>
+        {/* Filters */}
+        <div className="flex items-center space-x-4 mb-4">
+          <div className="flex-1">
+            <label htmlFor="search" className="sr-only">
+              Search
+            </label>
+            <input
+              type="text"
+              name="search"
+              id="search"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-green focus:ring-brand-green sm:text-sm p-2"
+              placeholder="Search by Name, Email..."
+            />
+          </div>
+          <div>
+            <button className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-brand-gray shadow-sm hover:bg-gray-50">
+              <span>Sort by: Name</span>
+              <ChevronDownIcon className="ml-2 h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <div className="inline-block min-w-full align-middle">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead>
+                <tr>
+                  <th
+                    scope="col"
+                    className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-brand-darkest sm:pl-0"
+                  >
+                    NAME
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-3.5 text-left text-sm font-semibold text-brand-darkest"
+                  >
+                    WEARABLE
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-3.5 text-left text-sm font-semibold text-brand-darkest"
+                  >
+                    STATUS
+                  </th>
+                  <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-0">
+                    <span className="sr-only">Edit</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {employees.map((person) => (
+                  <tr key={person.email}>
+                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-0">
+                      <div className="flex items-center">
+                        <div className="h-10 w-10 flex-shrink-0">
+                          <img className="h-10 w-10 rounded-full" src={person.image} alt="" />
+                        </div>
+                        <div className="ml-4">
+                          <div className="font-medium text-brand-darkest">{person.name}</div>
+                          <div className="text-brand-gray">{person.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-brand-gray">
+                      {person.wearable}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-brand-gray">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          person.status === 'Connected'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}
+                      >
+                        {person.status}
+                      </span>
+                    </td>
+                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
+                      <a href="#" className="text-brand-green hover:text-brand-green-light">
+                        View<span className="sr-only">, {person.name}</span>
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

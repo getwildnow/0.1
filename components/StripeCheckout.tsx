@@ -44,7 +44,7 @@ export function StripeCheckout({ companyId, employeeCount }: StripeCheckoutProps
         throw new Error('Stripe failed to load')
       }
 
-      const { error } = await stripe.redirectToCheckout({
+      const { error } = await (stripe as any).redirectToCheckout({
         sessionId: data.sessionId,
       })
 

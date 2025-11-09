@@ -3,36 +3,47 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    font-family: 'Inter', sans-serif;
+    scroll-behavior: smooth;
+  }
+
   :root {
-    --brand-cream: #FFFAF4;
+    /* Figma Design Tokens */
+    --brand-cream: #fffaf4;
     --brand-gray: #989795;
     --brand-charcoal: #333333;
-    --brand-dark: #1B1D1A;
-    --brand-black: #11120D;
-    --brand-yellow: #F8D794;
+    --brand-dark: #1b1d1a;
+    --brand-black: #0e1414;
+    --brand-yellow: #f8d794;
     --brand-green: #809076;
     --brand-teal: #243132;
+    --brand-accent-3: #f8d794;
+  }
+
+  * {
+    @apply font-['Inter',sans-serif];
   }
 
   body {
-    @apply text-brand-dark bg-brand-cream;
+    @apply text-[#1b1d1a] bg-[#fffaf4] antialiased;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-bold text-brand-black;
+    @apply font-semibold text-[#0e1414] tracking-tight;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-brand-green text-white px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition-all duration-200;
+    @apply bg-[#1b1d1a] text-[#fffaf4] px-4 py-2 rounded-[12px] text-[16px] font-medium tracking-[-0.08px] leading-[1.45] hover:bg-[#0e1414] transition-colors duration-200;
   }
   
   .btn-secondary {
-    @apply bg-brand-teal text-white px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition-all duration-200;
+    @apply border border-[#243132] text-[#243132] px-4 py-2 rounded-full text-sm font-medium hover:bg-[#243132] hover:text-white transition-colors duration-200;
   }
 
   .card {
-    @apply bg-white rounded-lg shadow-lg p-6 border border-brand-gray/10;
+    @apply bg-white rounded-2xl shadow-sm p-6 border border-[#989795]/10;
   }
 }

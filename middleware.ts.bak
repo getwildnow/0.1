@@ -59,21 +59,21 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Protected routes
-  if (pathname.startsWith('/employer/dashboard') && !user) {
-    return NextResponse.redirect(new URL('/employer/login', request.url))
-  }
+  // if (pathname.startsWith('/employer/dashboard') && !user) {
+  //   return NextResponse.redirect(new URL('/employer/login', request.url))
+  // }
 
-  if (pathname.startsWith('/employee/dashboard') && !user) {
-    return NextResponse.redirect(new URL('/employee/login', request.url))
-  }
+  // if (pathname.startsWith('/employee/dashboard') && !user) {
+  //   return NextResponse.redirect(new URL('/employee/login', request.url))
+  // }
 
   // Admin routes require password check (handled in the route)
-  if (pathname.startsWith('/admin') && !pathname.includes('/login')) {
-    const adminSessionCookie = request.cookies.get('admin_session')
-    if (!adminSessionCookie) {
-      return NextResponse.redirect(new URL('/admin/login', request.url))
-    }
-  }
+  // if (pathname.startsWith('/admin') && !pathname.includes('/login')) {
+  //   const adminSessionCookie = request.cookies.get('admin_session')
+  //   if (!adminSessionCookie) {
+  //     return NextResponse.redirect(new URL('/admin/login', request.url))
+  //   }
+  // }
 
   return response
 }
