@@ -72,11 +72,6 @@ export default function SignUpPage() {
           <h2 className="mt-6 text-center text-3xl font-semibold text-brand-black">
             Create an account
           </h2>
-          {step === 2 && (
-            <p className="mt-2 text-center text-sm text-brand-gray">
-              {email}
-            </p>
-          )}
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg p-8 space-y-6">
