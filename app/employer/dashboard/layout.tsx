@@ -21,6 +21,7 @@ export default function EmployerDashboardLayout({
 
   const links = [
     { name: 'Overview', href: '/employer/dashboard', icon: <HomeIcon /> },
+    { name: 'Stats', href: '/employer/dashboard/stats', icon: <ChartBarIcon /> },
     { name: 'Billing', href: '/employer/dashboard/billing', icon: <CreditCardIcon /> },
   ]
 
