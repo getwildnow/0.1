@@ -92,6 +92,10 @@ export async function POST(request: NextRequest) {
           | { id: string; user_id: string | null }
           | null
 
+        // Log the redirect URL for debugging
+        const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/employee-verification`
+        console.log(`[Invite] Sending invitation to ${email} with redirect: ${redirectUrl}`)
+
         const { data: authData, error: authError } = await admin.auth.admin.inviteUserByEmail(
           email,
           {
@@ -101,24 +105,27 @@ export async function POST(request: NextRequest) {
               company_id: companyId,
               company_name: company.name
             },
-            redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/employee-verification`
+            redirectTo: redirectUrl
           }
         )
 
         let userId = authData?.user?.id || existingEmployeeRecord?.user_id || null
 
         if (authError) {
+          console.error(`[Invite] Auth error for ${email}:`, authError.message)
           const message = authError.message.toLowerCase()
           const alreadyRegistered =
             message.includes('already registered') || message.includes('already been registered')
 
           if (alreadyRegistered) {
+            console.log(`[Invite] User ${email} already registered, re-inviting...`)
             const { data: existingUsers } = await admin.auth.admin.listUsers()
             const foundUser = existingUsers?.users?.find(
               (u: any) => u.email?.toLowerCase() === email.toLowerCase()
             )
             if (foundUser) {
               userId = foundUser.id
+              console.log(`[Invite] Found existing user ${email} with ID: ${userId}`)
             }
           } else {
             results.push({
@@ -128,6 +135,8 @@ export async function POST(request: NextRequest) {
             })
             continue
           }
+        } else {
+          console.log(`[Invite] Successfully sent invitation to ${email}`)
         }
 
         const payload = {

@@ -1,0 +1,25 @@
+PLAIN TEXT VERSION (for email clients that don't support HTML):
+
+Subject: You've been invited to Get Wild! 🎉
+
+---
+
+You've been invited! 🎉
+
+{{ .Data.company_name }} has invited you to join their health insurance plan with Get Wild.
+
+Get started with AI-powered health insights, free wearables, and comprehensive coverage.
+
+Click here to start verification:
+{{ .ConfirmationURL }}
+
+---
+
+Questions? Contact us at hello@getwild-now.com
+
+© 2025 Get Wild. All rights reserved.
+
+---
+
+Note: This is a plain text fallback. Most email clients will display the beautiful HTML version.
+

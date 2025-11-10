@@ -1,0 +1,201 @@
+# Supabase Email Template Setup
+
+## Important: Update Environment Variable
+
+Make sure your `.env.local` has the correct production URL:
+
+```bash
+NEXT_PUBLIC_BASE_URL=https://www.getwild-now.com
+```
+
+**After updating, redeploy on Railway!**
+
+---
+
+## Email Template Configuration
+
+### Step 1: Access Supabase Dashboard
+
+1. Go to your Supabase project: https://supabase.com/dashboard
+2. Navigate to **Authentication** → **Email Templates**
+3. Select **Invite user** template
+
+### Step 2: Configure the Invite Email Template
+
+Replace the default template with this custom HTML:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Get Wild</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f4f0;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f4f0;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+          
+          <!-- Logo Section -->
+          <tr>
+            <td style="padding: 40px 40px 20px 40px; text-align: center;">
+              <img src="https://www.figma.com/api/mcp/asset/6368c286-c151-422f-9597-9b0fdc19ea03" alt="Get wild." style="height: 36px; width: auto;" />
+            </td>
+          </tr>
+          
+          <!-- Main Content -->
+          <tr>
+            <td style="padding: 20px 40px 40px 40px;">
+              <h1 style="margin: 0 0 16px 0; font-size: 28px; font-weight: 600; color: #11120D; text-align: center; line-height: 1.3;">
+                You've been invited! 🎉
+              </h1>
+              
+              <p style="margin: 0 0 24px 0; font-size: 16px; color: #5c5c5c; text-align: center; line-height: 1.6;">
+                {{ .Data.company_name }} has invited you to join their health insurance plan with Get Wild.
+              </p>
+              
+              <p style="margin: 0 0 32px 0; font-size: 15px; color: #5c5c5c; text-align: center; line-height: 1.6;">
+                Get started with AI-powered health insights, free wearables, and comprehensive coverage.
+              </p>
+              
+              <!-- CTA Button -->
+              <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td align="center" style="padding: 0;">
+                    <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 16px 48px; background-color: #1b1d1a; color: #ffffff; text-decoration: none; border-radius: 12px; font-size: 16px; font-weight: 500; text-align: center;">
+                      Start Verification
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              
+              <p style="margin: 32px 0 0 0; font-size: 13px; color: #989795; text-align: center; line-height: 1.5;">
+                If the button doesn't work, copy and paste this link into your browser:
+              </p>
+              <p style="margin: 8px 0 0 0; font-size: 12px; color: #989795; text-align: center; word-break: break-all;">
+                {{ .ConfirmationURL }}
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px 40px 40px; border-top: 1px solid #e5e5e5;">
+              <p style="margin: 0 0 8px 0; font-size: 13px; color: #989795; text-align: center; line-height: 1.5;">
+                Questions? Contact us at <a href="mailto:hello@getwild-now.com" style="color: #1b1d1a; text-decoration: none;">hello@getwild-now.com</a>
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #989795; text-align: center;">
+                © 2025 Get Wild. All rights reserved.
+              </p>
+            </td>
+          </tr>
+          
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+```
+
+### Step 3: Update Subject Line
+
+Change the subject line to:
+
+```
+You've been invited to Get Wild! 🎉
+```
+
+### Step 4: Test Email Delivery
+
+After saving the template:
+
+1. Go to your employer dashboard
+2. Try sending an invite to a test email
+3. Check:
+   - ✅ Email arrives (check spam folder too)
+   - ✅ Styling looks good
+   - ✅ Button works and redirects to `/employee-verification`
+
+---
+
+## Troubleshooting Email Delivery Issues
+
+### Issue: Emails not being sent
+
+**Possible causes:**
+
+1. **Rate Limiting (Development)**
+   - Supabase free tier limits: 3 emails per hour
+   - **Solution**: Upgrade to Pro plan or configure custom SMTP
+
+2. **SMTP Not Configured**
+   - Default Supabase SMTP has strict limits
+   - **Solution**: Configure custom SMTP (Gmail, SendGrid, AWS SES)
+
+3. **Emails Going to Spam**
+   - **Solution**: Check spam folder, configure SPF/DKIM records
+
+4. **Wrong Base URL**
+   - **Solution**: Ensure `NEXT_PUBLIC_BASE_URL=https://www.getwild-now.com` in Railway environment variables
+
+### Configure Custom SMTP (Recommended for Production)
+
+1. Go to Supabase Dashboard → **Project Settings** → **Auth**
+2. Scroll to **SMTP Settings**
+3. Enable **Enable Custom SMTP**
+4. Configure with your SMTP provider:
+
+**Example with Gmail:**
+```
+Host: smtp.gmail.com
+Port: 587
+Username: your-email@gmail.com
+Password: [App Password - not your regular password]
+Sender email: your-email@gmail.com
+Sender name: Get Wild
+```
+
+**Example with SendGrid:**
+```
+Host: smtp.sendgrid.net
+Port: 587
+Username: apikey
+Password: [Your SendGrid API Key]
+Sender email: noreply@getwild-now.com
+Sender name: Get Wild
+```
+
+### Check Email Logs
+
+1. Go to Supabase Dashboard → **Authentication** → **Logs**
+2. Look for email events
+3. Check for errors or delivery status
+
+---
+
+## Production Checklist
+
+- [ ] Update `NEXT_PUBLIC_BASE_URL` in Railway environment variables
+- [ ] Update email template in Supabase dashboard
+- [ ] Update subject line
+- [ ] Configure custom SMTP (recommended)
+- [ ] Test email delivery
+- [ ] Check spam folder
+- [ ] Verify button redirects correctly
+- [ ] Redeploy on Railway
+
+---
+
+## Quick Fix for Immediate Testing
+
+If emails are still not working:
+
+1. **Check Supabase Auth Logs** for errors
+2. **Verify email rate limits** haven't been exceeded
+3. **Test with different email addresses** (Gmail, Outlook, etc.)
+4. **Check Railway environment variables** are set correctly
+5. **Redeploy** after any environment variable changes
+
