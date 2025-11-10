@@ -1,53 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
+import https from 'https'
+import { URL } from 'url'
 
-// Helper function to make HTTP request with retry logic
-async function makeVeriffRequest(url: string, options: RequestInit, retries = 3): Promise<Response> {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    let timeoutId: NodeJS.Timeout | null = null
-    try {
-      console.log(`Attempt ${attempt} of ${retries} to connect to Veriff API`)
+// Helper function to make HTTP request using Node's native https module
+async function makeVeriffRequest(url: string, body: string, headers: Record<string, string>): Promise<{ status: number; statusText: string; text: () => Promise<string> }> {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url)
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || 443,
+      path: urlObj.pathname + urlObj.search,
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Length': Buffer.byteLength(body),
+      },
+      timeout: 30000,
+    }
+
+    const req = https.request(options, (res) => {
+      let data = ''
       
-      // Add timeout using AbortController
-      const controller = new AbortController()
-      timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
-      
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-        // Ensure proper headers for Railway/Node.js environment
-        headers: {
-          ...options.headers,
-          'User-Agent': 'Next.js-Veriff-Integration',
-          'Accept': 'application/json',
-        },
+      res.on('data', (chunk) => {
+        data += chunk
       })
       
-      if (timeoutId) clearTimeout(timeoutId)
-      return response
-    } catch (error) {
-      if (timeoutId) clearTimeout(timeoutId)
-      
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      console.error(`Attempt ${attempt} failed:`, errorMessage)
-      
-      // If it's the last attempt, throw the error
-      if (attempt === retries) {
-        // Check if it's a timeout or connection error
-        if (errorMessage.includes('aborted') || errorMessage.includes('timeout')) {
-          throw new Error(`Connection timeout: Veriff API did not respond within 30 seconds`)
-        }
-        if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('ENOTFOUND')) {
-          throw new Error(`DNS/Connection error: Cannot reach Veriff API. Check network configuration.`)
-        }
-        throw new Error(`Failed to connect to Veriff API after ${retries} attempts: ${errorMessage}`)
-      }
-      
-      // Wait before retrying (exponential backoff)
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
-    }
-  }
-  
-  throw new Error('Unexpected error in retry logic')
+      res.on('end', () => {
+        resolve({
+          status: res.statusCode || 500,
+          statusText: res.statusMessage || 'Unknown',
+          text: async () => data,
+        })
+      })
+    })
+
+    req.on('error', (error) => {
+      console.error('HTTPS request error:', error)
+      reject(error)
+    })
+
+    req.on('timeout', () => {
+      req.destroy()
+      reject(new Error('Request timeout'))
+    })
+
+    req.write(body)
+    req.end()
+  })
 }
 
 export async function POST(request: NextRequest) {
@@ -69,38 +68,61 @@ export async function POST(request: NextRequest) {
     console.log('Making request to Veriff API:', veriffApiUrl)
     console.log('Request body:', JSON.stringify(requestBody, null, 2))
     
+    const requestBodyString = JSON.stringify(requestBody)
     let response
-    try {
-      response = await makeVeriffRequest(veriffApiUrl, {
-        method: 'POST',
-        headers: {
+    let responseText: string
+    
+    // Try with retry logic
+    const maxRetries = 3
+    let lastError: Error | null = null
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Attempt ${attempt} of ${maxRetries} to connect to Veriff API`)
+        response = await makeVeriffRequest(veriffApiUrl, requestBodyString, {
           'X-AUTH-CLIENT': 'bc193001-958f-45ca-931f-c6a040a59ff9',
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      })
-    } catch (fetchError) {
-      console.error('Fetch error details:', {
-        message: fetchError instanceof Error ? fetchError.message : String(fetchError),
-        name: fetchError instanceof Error ? fetchError.name : 'Unknown',
-        stack: fetchError instanceof Error ? fetchError.stack : undefined,
-        cause: fetchError instanceof Error ? fetchError.cause : undefined,
-      })
-      
+          'User-Agent': 'Next.js-Veriff-Integration',
+          'Accept': 'application/json',
+        })
+        responseText = await response.text()
+        break // Success, exit retry loop
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error))
+        console.error(`Attempt ${attempt} failed:`, lastError.message)
+        
+        if (attempt === maxRetries) {
+          console.error('All retry attempts failed:', {
+            message: lastError.message,
+            name: lastError.name,
+            stack: lastError.stack,
+          })
+          
+          return NextResponse.json(
+            { 
+              error: `Failed to connect to Veriff API after ${maxRetries} attempts: ${lastError.message}`,
+              details: 'This might be a Railway network configuration issue. Check Railway network settings.',
+              suggestion: 'Verify that Railway allows outbound HTTPS connections to api.veriff.com'
+            },
+            { status: 503 }
+          )
+        }
+        
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+      }
+    }
+    
+    if (!response || !responseText) {
       return NextResponse.json(
-        { 
-          error: fetchError instanceof Error ? fetchError.message : 'Failed to connect to Veriff API',
-          details: 'Please check Railway logs for more information. This might be a network configuration issue.'
-        },
-        { status: 503 }
+        { error: 'No response received from Veriff API' },
+        { status: 500 }
       )
     }
-
-    const responseText = await response.text()
     console.log('Veriff API Response Status:', response.status)
     console.log('Veriff API Response:', responseText)
 
-    if (!response.ok) {
+    if (response.status < 200 || response.status >= 300) {
       console.error('Veriff API error:', responseText)
       return NextResponse.json(
         { error: `Veriff API error: ${response.status} ${response.statusText}. Details: ${responseText}` },
