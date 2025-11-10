@@ -92,8 +92,8 @@ export async function POST(request: NextRequest) {
           | { id: string; user_id: string | null }
           | null
 
-        // Send invite with proper redirect URL
-        const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/employee-verification`
+        // Send invite with redirect directly to dashboard
+        const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/employee/dashboard`
         console.log(`[Invite] Sending invitation to ${email} with redirect: ${redirectUrl}`)
 
         const { data: authData, error: authError } = await admin.auth.admin.inviteUserByEmail(
