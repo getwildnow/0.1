@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { createBrowserClient } from '@supabase/ssr'
 
 interface Message {
   from: 'user' | 'ai'
@@ -8,9 +10,72 @@ interface Message {
 }
 
 export default function EmployeeDashboard() {
+  const router = useRouter()
   const [message, setMessage] = useState('')
   const [agreed, setAgreed] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null)
+  const [isCheckingVerification, setIsCheckingVerification] = useState(true)
+
+  useEffect(() => {
+    const checkVerificationAndAuth = async () => {
+      console.log('[Dashboard] Checking authentication and verification status...')
+      
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
+
+      // Check authentication
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      
+      if (authError || !user) {
+        console.log('[Dashboard] Not authenticated, redirecting to login...')
+        router.push('/employee/login')
+        return
+      }
+
+      console.log('[Dashboard] User authenticated. UID:', user.id)
+
+      // Check verification status
+      const { data: employee, error: empError } = await supabase
+        .from('employees')
+        .select('veriff_status, name, email')
+        .eq('user_id', user.id)
+        .single()
+
+      if (empError) {
+        console.error('[Dashboard] Error fetching employee:', empError)
+        setIsCheckingVerification(false)
+        return
+      }
+
+      console.log('[Dashboard] Employee found:', employee?.email)
+      console.log('[Dashboard] Verification status:', employee?.veriff_status)
+      setVerificationStatus(employee?.veriff_status || null)
+
+      // Handle different verification statuses
+      if (!employee?.veriff_status || employee.veriff_status === 'pending') {
+        console.log('[Dashboard] Not verified yet, redirecting to verification page...')
+        router.push('/employee-verification')
+        return
+      } else if (employee.veriff_status === 'declined' || employee.veriff_status === 'resubmission_requested') {
+        console.log('[Dashboard] Verification declined, redirecting with error...')
+        router.push('/employee-verification?error=declined')
+        return
+      } else if (employee.veriff_status === 'started') {
+        console.log('[Dashboard] Verification in progress...')
+        // Show in-progress state below
+      } else if (employee.veriff_status === 'approved') {
+        console.log('[Dashboard] Verification approved! Showing dashboard')
+        // Continue to show dashboard
+      }
+
+      setIsCheckingVerification(false)
+    }
+
+    checkVerificationAndAuth()
+  }, [router])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,6 +92,40 @@ export default function EmployeeDashboard() {
     setMessage('')
   }
 
+  // Show loading while checking verification
+  if (isCheckingVerification) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F9F9F9]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-dark mx-auto"></div>
+          <p className="mt-4 text-brand-gray">Checking verification status...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show "verification in progress" if user just came back from Veriff
+  if (verificationStatus === 'started') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F9F9F9]">
+        <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8 text-center">
+          <div className="text-yellow-500 text-5xl mb-4">⏳</div>
+          <h2 className="text-2xl font-bold text-brand-black mb-2">Verification In Progress</h2>
+          <p className="text-brand-gray mb-6">
+            Your identity verification is being processed. This usually takes a few minutes.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-[#1b1d1a] text-white px-6 py-3 rounded-lg hover:bg-[#0e1414] transition-colors"
+          >
+            Refresh Status
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // If verification is approved, show the actual dashboard
   return (
     <div className="flex h-full flex-col bg-[#F9F9F9]">
       <div className="flex-1 overflow-y-auto p-8">
