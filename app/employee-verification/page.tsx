@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
+import Veriff from '@veriff/js-sdk'
+import { createVeriffFrame } from '@veriff/incontext-sdk'
 
 function VerificationContent() {
   const searchParams = useSearchParams()
@@ -13,6 +15,8 @@ function VerificationContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [verificationStatus, setVerificationStatus] = useState<'idle' | 'loading' | 'submitted' | 'approved' | 'declined'>('idle')
+  const veriffInstanceRef = useRef<any>(null)
+  const veriffMountedRef = useRef(false)
 
   useEffect(() => {
     // Check for auth errors in URL
@@ -48,16 +52,6 @@ function VerificationContent() {
     loadUserData()
   }, [searchParams])
 
-  // Check if user just returned from Veriff
-  useEffect(() => {
-    const status = searchParams.get('veriff_status')
-    
-    if (status === 'success') {
-      // User completed verification, start polling
-      setVerificationStatus('submitted')
-      pollVerificationStatus()
-    }
-  }, [searchParams])
 
   // Poll verification status
   const pollVerificationStatus = async () => {
@@ -99,13 +93,13 @@ function VerificationContent() {
     }, 2000) // Poll every 2 seconds
   }
 
-  // Start verification process - Redirect to Veriff hosted page
+  // Start verification process - JavaScript SDK + InContext
   const handleStartVerification = async () => {
     setIsLoading(true)
     setError('')
 
     try {
-      // Create Veriff session
+      // Create Veriff session via our API
       console.log('[Veriff] Creating session...')
       const response = await fetch('/api/veriff/create-session', {
         method: 'POST',
@@ -128,11 +122,29 @@ function VerificationContent() {
 
       const { sessionUrl, sessionId } = await response.json()
       console.log('[Veriff] Session created:', sessionId)
-      console.log('[Veriff] Redirecting to:', sessionUrl)
+      console.log('[Veriff] Opening InContext modal with URL:', sessionUrl)
 
-      // Redirect to Veriff's hosted verification page
-      // User will complete verification there and Veriff will redirect back
-      window.location.href = sessionUrl
+      // Use InContext SDK to open modal
+      createVeriffFrame({
+        url: sessionUrl,
+        onEvent: (msg: string) => {
+          console.log('[Veriff] Event:', msg)
+          
+          if (msg === 'FINISHED') {
+            // User completed verification
+            console.log('[Veriff] Verification submitted, polling for result...')
+            setVerificationStatus('submitted')
+            setIsLoading(false)
+            pollVerificationStatus()
+          } else if (msg === 'CANCELED') {
+            console.log('[Veriff] User canceled verification')
+            setIsLoading(false)
+            setError('Verification was canceled. Click "Start Verification" to try again.')
+          }
+        },
+      })
+
+      setIsLoading(false)
 
     } catch (error: any) {
       console.error('[Veriff] Error:', error)
