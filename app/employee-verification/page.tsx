@@ -179,15 +179,16 @@ function VerificationContent() {
             </p>
           </div>
 
-          {/* Verification Button */}
+          {/* Verification Button - Using our custom button to trigger SDK */}
           <div>
             {verificationStatus === 'idle' && !error && (
               <button
+                id="start-verification-btn"
                 onClick={handleStartVerification}
                 disabled={isLoading}
                 className="bg-[#1b1d1a] px-8 py-4 rounded-xl text-white text-lg font-medium hover:bg-[#0e1414] transition-colors w-full max-w-xs mx-auto block disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Redirecting to verification...' : 'Start Verification'}
+                {isLoading ? 'Loading...' : 'Start Verification'}
               </button>
             )}
 
