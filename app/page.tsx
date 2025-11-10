@@ -9,27 +9,31 @@ export default function Home() {
     setIsLoading(true)
     
     try {
-      const response = await fetch('/api/create-veriff-session', {
+      const response = await fetch('https://rqmjnenmeixvpwyzwyjw.supabase.co/functions/v1/veriff_create_session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          vendorData: 'user_12345',
+          redirect: 'https://open.spotify.com/intl-de/track/4TeIrimd2REmDGGeAAEUog',
+        }),
       })
 
       const responseData = await response.json().catch(() => ({}))
 
       if (!response.ok) {
-        console.error('API Error:', responseData)
+        console.error('Supabase Edge Function Error:', responseData)
         throw new Error(responseData.error || `Failed to create verification session (${response.status})`)
       }
       
-      if (responseData.verificationUrl) {
-        console.log('Redirecting to Veriff:', responseData.verificationUrl)
+      if (responseData.verification_url) {
+        console.log('Redirecting to Veriff:', responseData.verification_url)
         // Redirect to Veriff verification flow
-        window.location.href = responseData.verificationUrl
+        window.location.href = responseData.verification_url
       } else {
         console.error('No verification URL in response:', responseData)
-        throw new Error('No verification URL received from server')
+        throw new Error('No verification URL received from Supabase')
       }
     } catch (error) {
       setIsLoading(false)
