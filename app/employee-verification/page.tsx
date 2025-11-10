@@ -50,8 +50,7 @@ function VerificationContent() {
           <div>
             <button
               onClick={() => {
-                // TODO: Tade will implement actual verification flow
-                window.location.href = '/employee/dashboard'
+                // Placeholder - verification flow will be implemented later
               }}
               className="bg-[#1b1d1a] px-8 py-4 rounded-xl text-white text-lg font-medium hover:bg-[#0e1414] transition-colors w-full max-w-xs mx-auto block"
             >
