@@ -4,19 +4,6 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
-import Script from 'next/script'
-
-// Declare Veriff SDK types
-declare global {
-  interface Window {
-    veriffSDK?: {
-      createVeriffFrame: (config: {
-        url: string
-        onEvent: (msg: string) => void
-      }) => void
-    }
-  }
-}
 
 function VerificationContent() {
   const searchParams = useSearchParams()
@@ -26,9 +13,17 @@ function VerificationContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [verificationStatus, setVerificationStatus] = useState<'idle' | 'loading' | 'submitted' | 'approved' | 'declined'>('idle')
-  const [sdkLoaded, setSdkLoaded] = useState(false)
 
   useEffect(() => {
+    // Check for auth errors in URL
+    const error = searchParams.get('error')
+    const errorCode = searchParams.get('error_code')
+    
+    if (error === 'access_denied' && errorCode === 'otp_expired') {
+      setError('Your invitation link has expired. Please request a new invitation from your employer.')
+      return
+    }
+
     // Get company info from user metadata
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,6 +32,11 @@ function VerificationContent() {
 
     const loadUserData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        setError('Authentication required. Please use the link from your invitation email.')
+        return
+      }
       
       if (user?.user_metadata) {
         const companyName = user.user_metadata.company_name || 'Get Wild'
@@ -48,30 +48,16 @@ function VerificationContent() {
     loadUserData()
   }, [searchParams])
 
-  // Handle Veriff SDK load
-  const handleSdkLoad = () => {
-    console.log('[Veriff] SDK loaded successfully')
-    console.log('[Veriff] SDK available:', !!window.veriffSDK)
-    setSdkLoaded(true)
-  }
-
-  // Check SDK load status after a delay
+  // Check if user just returned from Veriff
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!sdkLoaded) {
-        console.error('[Veriff] SDK failed to load after 5 seconds')
-        console.log('[Veriff] Attempting to check if SDK is available anyway...')
-        if (window.veriffSDK) {
-          console.log('[Veriff] SDK found in window object, activating...')
-          setSdkLoaded(true)
-        } else {
-          setError('Failed to load verification system. Please check your internet connection and refresh.')
-        }
-      }
-    }, 5000)
-
-    return () => clearTimeout(timer)
-  }, [sdkLoaded])
+    const status = searchParams.get('veriff_status')
+    
+    if (status === 'success') {
+      // User completed verification, start polling
+      setVerificationStatus('submitted')
+      pollVerificationStatus()
+    }
+  }, [searchParams])
 
   // Poll verification status
   const pollVerificationStatus = async () => {
@@ -113,13 +99,8 @@ function VerificationContent() {
     }, 2000) // Poll every 2 seconds
   }
 
-  // Start verification process
+  // Start verification process - Redirect to Veriff hosted page
   const handleStartVerification = async () => {
-    if (!window.veriffSDK) {
-      setError('Verification system is not ready. Please refresh the page.')
-      return
-    }
-
     setIsLoading(true)
     setError('')
 
@@ -147,27 +128,12 @@ function VerificationContent() {
 
       const { sessionUrl, sessionId } = await response.json()
       console.log('[Veriff] Session created:', sessionId)
+      console.log('[Veriff] Redirecting to:', sessionUrl)
 
-      // Open Veriff SDK
-      window.veriffSDK.createVeriffFrame({
-        url: sessionUrl,
-        onEvent: (msg) => {
-          console.log('[Veriff] Event:', msg)
-          
-          if (msg === 'FINISHED') {
-            // User completed verification, start polling for result
-            console.log('[Veriff] Verification submitted')
-            setVerificationStatus('submitted')
-            pollVerificationStatus()
-          } else if (msg === 'CANCELED') {
-            console.log('[Veriff] Verification canceled')
-            setIsLoading(false)
-            setError('Verification was canceled. Click "Start Verification" to try again.')
-          }
-        },
-      })
+      // Redirect to Veriff's hosted verification page
+      // User will complete verification there and Veriff will redirect back
+      window.location.href = sessionUrl
 
-      setIsLoading(false)
     } catch (error: any) {
       console.error('[Veriff] Error:', error)
       setError(error.message || 'Failed to start verification')
@@ -176,31 +142,7 @@ function VerificationContent() {
   }
 
   return (
-    <>
-      {/* Load Veriff SDK - Using both Script component and manual load as fallback */}
-      <Script
-        src="https://cdn.veriff.me/sdk/js/1.3/veriff.min.js"
-        strategy="lazyOnload"
-        onLoad={handleSdkLoad}
-        onError={(e) => {
-          console.error('[Veriff] Script component failed to load SDK:', e)
-          // Try manual load as fallback
-          const script = document.createElement('script')
-          script.src = 'https://cdn.veriff.me/sdk/js/1.3/veriff.min.js'
-          script.async = true
-          script.onload = () => {
-            console.log('[Veriff] Manual script load successful')
-            handleSdkLoad()
-          }
-          script.onerror = () => {
-            console.error('[Veriff] Manual script load also failed')
-            setError('Failed to load verification system. Please refresh the page.')
-          }
-          document.head.appendChild(script)
-        }}
-      />
-
-      <div className="bg-brand-cream min-h-screen flex flex-col">
+    <div className="bg-brand-cream min-h-screen flex flex-col">
       {/* Logo */}
       <div className="p-6">
         <Link href="/">
@@ -227,13 +169,13 @@ function VerificationContent() {
 
           {/* Verification Button */}
           <div>
-            {verificationStatus === 'idle' && (
+            {verificationStatus === 'idle' && !error && (
               <button
                 onClick={handleStartVerification}
-                disabled={isLoading || !sdkLoaded}
+                disabled={isLoading}
                 className="bg-[#1b1d1a] px-8 py-4 rounded-xl text-white text-lg font-medium hover:bg-[#0e1414] transition-colors w-full max-w-xs mx-auto block disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Loading...' : !sdkLoaded ? 'Preparing...' : 'Start Verification'}
+                {isLoading ? 'Redirecting to verification...' : 'Start Verification'}
               </button>
             )}
 
@@ -265,8 +207,20 @@ function VerificationContent() {
             )}
 
             {error && (
-              <div className="text-center text-red-600 text-sm mt-4">
-                {error}
+              <div className="text-center max-w-md mx-auto">
+                <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+                  <div className="text-red-600 text-lg font-medium mb-2">
+                    {error.includes('expired') ? '⏰ Link Expired' : '⚠️ Error'}
+                  </div>
+                  <p className="text-red-700 text-sm">
+                    {error}
+                  </p>
+                  {error.includes('expired') && (
+                    <p className="text-red-600 text-xs mt-3">
+                      Please contact your employer to send a new invitation link.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -285,8 +239,7 @@ function VerificationContent() {
           </p>
         </div>
       </div>
-      </div>
-    </>
+    </div>
   )
 }
 
