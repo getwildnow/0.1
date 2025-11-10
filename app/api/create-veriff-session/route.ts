@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
       const causeCode = errorCause?.code || (error as any).code
       
       // DNS resolution error (check both main error and cause)
+      // Note: Railway free plans may have DNS throttling/egress limitations
       if (errorMessage.includes('enotfound') || errorMessage.includes('getaddrinfo') || 
           causeMessage.includes('enotfound') || causeMessage.includes('getaddrinfo') ||
           causeCode === 'ENOTFOUND') {
@@ -65,7 +66,8 @@ export async function POST(request: NextRequest) {
           { 
             error: 'Cannot connect to Veriff API',
             details: 'DNS resolution failed. Railway cannot resolve api.veriff.com',
-            suggestion: 'This is a Railway network configuration issue. Please check Railway network settings or contact Railway support.'
+            suggestion: 'This is likely a Railway egress/DNS limitation on free plans. Consider upgrading your Railway plan or using a different hosting provider that allows outbound DNS requests.',
+            note: 'Free Railway plans may throttle outbound DNS requests under load. Verify with: curl https://api.veriff.com/v1/sessions'
           },
           { status: 503 }
         )
