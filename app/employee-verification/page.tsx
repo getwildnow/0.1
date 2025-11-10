@@ -50,9 +50,28 @@ function VerificationContent() {
 
   // Handle Veriff SDK load
   const handleSdkLoad = () => {
-    console.log('[Veriff] SDK loaded')
+    console.log('[Veriff] SDK loaded successfully')
+    console.log('[Veriff] SDK available:', !!window.veriffSDK)
     setSdkLoaded(true)
   }
+
+  // Check SDK load status after a delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!sdkLoaded) {
+        console.error('[Veriff] SDK failed to load after 5 seconds')
+        console.log('[Veriff] Attempting to check if SDK is available anyway...')
+        if (window.veriffSDK) {
+          console.log('[Veriff] SDK found in window object, activating...')
+          setSdkLoaded(true)
+        } else {
+          setError('Failed to load verification system. Please check your internet connection and refresh.')
+        }
+      }
+    }, 5000)
+
+    return () => clearTimeout(timer)
+  }, [sdkLoaded])
 
   // Poll verification status
   const pollVerificationStatus = async () => {
@@ -116,6 +135,13 @@ function VerificationContent() {
 
       if (!response.ok) {
         const errorData = await response.json()
+        console.error('[Veriff] Session creation failed:', errorData)
+        
+        // Check for specific error messages
+        if (errorData.error?.includes('VERIFF_API_KEY')) {
+          throw new Error('Verification service not configured. Please contact support.')
+        }
+        
         throw new Error(errorData.error || 'Failed to create verification session')
       }
 
@@ -151,14 +177,26 @@ function VerificationContent() {
 
   return (
     <>
-      {/* Load Veriff SDK */}
+      {/* Load Veriff SDK - Using both Script component and manual load as fallback */}
       <Script
         src="https://cdn.veriff.me/sdk/js/1.3/veriff.min.js"
-        strategy="afterInteractive"
+        strategy="lazyOnload"
         onLoad={handleSdkLoad}
-        onError={() => {
-          console.error('[Veriff] Failed to load SDK')
-          setError('Failed to load verification system')
+        onError={(e) => {
+          console.error('[Veriff] Script component failed to load SDK:', e)
+          // Try manual load as fallback
+          const script = document.createElement('script')
+          script.src = 'https://cdn.veriff.me/sdk/js/1.3/veriff.min.js'
+          script.async = true
+          script.onload = () => {
+            console.log('[Veriff] Manual script load successful')
+            handleSdkLoad()
+          }
+          script.onerror = () => {
+            console.error('[Veriff] Manual script load also failed')
+            setError('Failed to load verification system. Please refresh the page.')
+          }
+          document.head.appendChild(script)
         }}
       />
 
@@ -263,3 +301,4 @@ export default function EmployeeVerificationPage() {
     </Suspense>
   )
 }
+
