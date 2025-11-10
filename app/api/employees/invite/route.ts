@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
               company_id: companyId,
               company_name: company.name
             },
-            redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/employee/onboarding`
+            redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/employee-verification`
           }
         )
 
