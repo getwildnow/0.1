@@ -227,7 +227,7 @@ Make sure the first row is the header row.`;
   };
 
   return (
-    <div className="p-8 bg-[#F9F9F9] min-h-screen text-brand-black">
+    <div className="p-8 bg-brand-cream min-h-screen text-brand-black">
       <header className="mb-8">
         <h1 className="text-3xl font-semibold text-brand-darkest">Your Dashboard</h1>
         <p className="text-brand-gray">
@@ -238,7 +238,7 @@ Make sure the first row is the header row.`;
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {kpis.map((kpi) => (
-          <div key={kpi.name} className="bg-white p-6 rounded-lg border border-gray-200">
+          <div key={kpi.name} className="bg-white p-6 rounded-lg border border-brand-gray/20">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <kpi.icon className="h-6 w-6 text-brand-gray" aria-hidden="true" />
@@ -249,7 +249,7 @@ Make sure the first row is the header row.`;
                   <dd className="flex flex-col">
                     <p className="text-2xl font-semibold text-brand-darkest">{kpi.value}</p>
                     {kpi.change && (
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-xs text-brand-gray mt-0.5">
                         {kpi.change}
                       </p>
                     )}
@@ -262,7 +262,7 @@ Make sure the first row is the header row.`;
       </div>
 
       {/* Main Content */}
-      <div className="bg-white p-6 rounded-lg border border-gray-200">
+      <div className="bg-white p-6 rounded-lg border border-brand-gray/20">
         <div className="sm:flex sm:items-center sm:justify-between mb-6">
           <div>
             <h2 className="text-xl font-semibold text-brand-darkest">Team Members</h2>
@@ -292,26 +292,26 @@ Make sure the first row is the header row.`;
               type="text"
               name="search"
               id="search"
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-green focus:ring-brand-green sm:text-sm p-2"
+              className="block w-full rounded-lg border-brand-gray/30 focus:border-brand-green focus:ring-brand-green sm:text-sm p-2"
               placeholder="Search by Name, Email..."
             />
           </div>
           <div className="relative">
             <button 
               onClick={() => setShowSortMenu(!showSortMenu)}
-              className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-brand-gray shadow-sm hover:bg-gray-50"
+              className="inline-flex items-center justify-center rounded-lg border border-brand-gray/30 bg-white px-4 py-2 text-sm font-medium text-brand-dark hover:bg-brand-cream transition-colors"
             >
               <span>Sort by: {sortBy}</span>
               <ChevronDownIcon className="ml-2 h-5 w-5" aria-hidden="true" />
             </button>
             {showSortMenu && (
-              <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+              <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-brand-gray/20 z-10">
                 <button
                   onClick={() => {
                     setSortBy('Name');
                     setShowSortMenu(false);
                   }}
-                  className="block w-full text-left px-4 py-2 text-sm text-brand-dark hover:bg-gray-50"
+                  className="block w-full text-left px-4 py-2 text-sm text-brand-dark hover:bg-brand-cream rounded-t-lg"
                 >
                   Name
                 </button>
@@ -320,7 +320,7 @@ Make sure the first row is the header row.`;
                     setSortBy('Status');
                     setShowSortMenu(false);
                   }}
-                  className="block w-full text-left px-4 py-2 text-sm text-brand-dark hover:bg-gray-50"
+                  className="block w-full text-left px-4 py-2 text-sm text-brand-dark hover:bg-brand-cream rounded-b-lg"
                 >
                   Status
                 </button>
@@ -332,7 +332,7 @@ Make sure the first row is the header row.`;
         {/* Table */}
         <div className="overflow-x-auto">
           <div className="inline-block min-w-full align-middle">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-brand-gray/20">
               <thead>
                 <tr>
                   <th
@@ -358,7 +358,7 @@ Make sure the first row is the header row.`;
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y divide-brand-gray/20 bg-white">
                 {employees.map((person) => (
                   <tr key={person.email}>
                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-0">
@@ -379,15 +379,15 @@ Make sure the first row is the header row.`;
                       <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                           person.status === 'Connected'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
+                            ? 'bg-brand-green/10 text-brand-green'
+                            : 'bg-brand-yellow/20 text-brand-dark'
                         }`}
                       >
                         {person.status}
                       </span>
                     </td>
                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
-                      <a href="#" className="text-brand-green hover:text-brand-green-light">
+                      <a href="#" className="text-brand-green hover:text-brand-green-light transition-colors">
                         View<span className="sr-only">, {person.name}</span>
                       </a>
                     </td>
