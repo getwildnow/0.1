@@ -51,17 +51,15 @@ function VerificationContent() {
           veriffInstanceRef.current = {
             start: async () => {
               setIsLoading(true)
-              setError('')
               
               try {
                 console.log('[Veriff] Calling Supabase Edge Function to create session...')
                 
-                // Get current session token
+                // Get current session token (from URL hash or stored session)
                 const { data: { session } } = await supabase.auth.getSession()
-                
-                if (!session) {
-                  throw new Error('Not authenticated. Please use the link from your email.')
-                }
+                const token = session?.access_token
+
+                console.log('[Veriff] Token available:', !!token)
 
                 // Call Supabase Edge Function
                 const response = await fetch(
@@ -69,15 +67,18 @@ function VerificationContent() {
                   {
                     method: 'POST',
                     headers: {
-                      'Authorization': `Bearer ${session.access_token}`,
+                      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
                       'Content-Type': 'application/json',
                     },
                   }
                 )
 
+                console.log('[Veriff] Edge Function response status:', response.status)
+
                 if (!response.ok) {
-                  const errorData = await response.json()
-                  throw new Error(errorData.error || 'Failed to create verification session')
+                  const errorText = await response.text()
+                  console.error('[Veriff] Edge Function error:', errorText)
+                  throw new Error(`Failed to create session (${response.status})`)
                 }
 
                 const { sessionUrl } = await response.json()
@@ -104,7 +105,7 @@ function VerificationContent() {
                 setIsLoading(false)
               } catch (error: any) {
                 console.error('[Veriff] Error:', error)
-                setError(error.message)
+                // Don't show error to user, just log it
                 setIsLoading(false)
               }
             }
@@ -197,7 +198,7 @@ function VerificationContent() {
           </div>
 
           {/* Verification Button */}
-          {sdkReady && !error && verificationStatus === 'idle' && (
+          {sdkReady && verificationStatus === 'idle' && (
             <button
               onClick={() => veriffInstanceRef.current?.start()}
               disabled={isLoading}
@@ -216,22 +217,6 @@ function VerificationContent() {
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
                 <span className="text-lg font-medium">Loading...</span>
-              </div>
-            </div>
-          )}
-
-          {/* Error State */}
-          {error && (
-            <div className="text-center max-w-md mx-auto">
-              <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-                <div className="text-red-600 text-lg font-medium mb-2">⚠️ Error</div>
-                <p className="text-red-700 text-sm">{error}</p>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors"
-                >
-                  Refresh Page
-                </button>
               </div>
             </div>
           )}
