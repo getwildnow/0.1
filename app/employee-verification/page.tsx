@@ -19,37 +19,55 @@ function VerificationContent() {
   const veriffMountedRef = useRef(false)
 
   useEffect(() => {
-    // Check for auth errors in URL
-    const error = searchParams.get('error')
-    const errorCode = searchParams.get('error_code')
-    
-    if (error === 'access_denied' && errorCode === 'otp_expired') {
-      setError('Your invitation link has expired. Please request a new invitation from your employer.')
-      return
-    }
-
-    // Get company info from user metadata
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-
-    const loadUserData = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+    const checkAuthAndLoad = async () => {
+      // Check for auth errors in URL
+      const error = searchParams.get('error')
+      const errorCode = searchParams.get('error_code')
       
-      if (!user) {
-        setError('Authentication required. Please use the link from your invitation email.')
+      if (error === 'access_denied' && errorCode === 'otp_expired') {
+        setError('Your invitation link has expired. Please request a new invitation from your employer.')
         return
       }
-      
-      if (user?.user_metadata) {
-        const companyName = user.user_metadata.company_name || 'Get Wild'
+
+      // Get company info from user metadata
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
+
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        
+        console.log('[Auth] User check:', user ? 'Authenticated' : 'Not authenticated', authError)
+        
+        if (authError) {
+          console.error('[Auth] Error:', authError)
+          setError('Authentication error. Please try using the link from your email again.')
+          return
+        }
+        
+        if (!user) {
+          // Only show error if there are no auth params in URL (not in the middle of auth flow)
+          const hasAuthParams = searchParams.has('access_token') || searchParams.has('refresh_token')
+          if (!hasAuthParams) {
+            setError('Authentication required. Please use the link from your invitation email.')
+          }
+          return
+        }
+        
+        // User is authenticated
+        console.log('[Auth] User authenticated:', user.id)
+        const companyName = user.user_metadata?.company_name || 'Get Wild'
         setCompanyName(companyName)
         setFounderName('your employer')
+        
+      } catch (err) {
+        console.error('[Auth] Exception:', err)
+        setError('Failed to check authentication. Please refresh the page.')
       }
     }
 
-    loadUserData()
+    checkAuthAndLoad()
   }, [searchParams])
 
 
