@@ -53,59 +53,35 @@ function VerificationContent() {
               setIsLoading(true)
               
               try {
-                console.log('[Veriff] Calling Supabase Edge Function to create session...')
+                console.log('[Veriff] Calling Supabase Edge Function...')
                 
-                // Get current session token (from URL hash or stored session)
-                const { data: { session } } = await supabase.auth.getSession()
-                const token = session?.access_token
-
-                console.log('[Veriff] Token available:', !!token)
-
-                // Call Supabase Edge Function
-                const response = await fetch(
-                  `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-veriff-session`,
+                const res = await fetch(
+                  'https://rqmjnenmeixvpwyzwyjw.supabase.co/functions/v1/create-veriff-session',
                   {
                     method: 'POST',
                     headers: {
-                      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
                     },
                   }
                 )
 
-                console.log('[Veriff] Edge Function response status:', response.status)
-
-                if (!response.ok) {
-                  const errorText = await response.text()
-                  console.error('[Veriff] Edge Function error:', errorText)
-                  throw new Error(`Failed to create session (${response.status})`)
+                if (!res.ok) {
+                  const text = await res.text()
+                  console.error('[Veriff] Error:', text)
+                  alert('Error starting verification.')
+                  setIsLoading(false)
+                  return
                 }
 
-                const { sessionUrl } = await response.json()
-                console.log('[Veriff] Session created successfully, opening modal...')
-
-                // Open Veriff InContext modal
-                createVeriffFrame({
-                  url: sessionUrl,
-                  onEvent: (msg: string) => {
-                    console.log('[Veriff] Modal event:', msg)
-                    
-                    if (msg === 'FINISHED') {
-                      console.log('[Veriff] Verification submitted, polling for result...')
-                      setVerificationStatus('submitted')
-                      setIsLoading(false)
-                      pollVerificationStatus()
-                    } else if (msg === 'CANCELED') {
-                      console.log('[Veriff] Verification canceled by user')
-                      setIsLoading(false)
-                    }
-                  },
-                })
+                const data = await res.json()
+                console.log('[Veriff] Session created, redirecting to Veriff...')
                 
-                setIsLoading(false)
-              } catch (error: any) {
-                console.error('[Veriff] Error:', error)
-                // Don't show error to user, just log it
+                // Redirect to Veriff flow
+                window.location.href = data.url
+                
+              } catch (err) {
+                console.error('[Veriff] Fetch failed:', err)
+                alert('Network or server error.')
                 setIsLoading(false)
               }
             }

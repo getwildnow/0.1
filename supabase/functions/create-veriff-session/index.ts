@@ -103,7 +103,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        sessionUrl: veriffData.verification.url,
+        url: veriffData.verification.url,
         sessionId: veriffData.verification.id,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
