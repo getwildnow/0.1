@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
     console.log('Request body:', JSON.stringify(requestBody, null, 2))
     
     const requestBodyString = JSON.stringify(requestBody)
-    let response
-    let responseText: string
+    let response: { status: number; statusText: string; text: () => Promise<string> } | null = null
+    let responseText: string | null = null
     
     // Try with retry logic
     const maxRetries = 3
