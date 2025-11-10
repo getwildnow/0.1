@@ -94,6 +94,9 @@ export default function EmployerDashboard() {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [inviteResults, setInviteResults] = useState<any>(null);
+  const [singleName, setSingleName] = useState('');
+  const [singleRole, setSingleRole] = useState('');
+  const [singleEmail, setSingleEmail] = useState('');
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -124,7 +127,8 @@ export default function EmployerDashboard() {
   const handleSubmitInvites = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!uploadedFile) return;
+    // Check if we have either single employee or CSV file
+    if (!uploadedFile && !singleEmail) return;
 
     setIsProcessing(true);
     setInviteResults(null);
@@ -135,6 +139,48 @@ export default function EmployerDashboard() {
       if (!companyId) {
         throw new Error('Company ID not found. Please log in again.');
       }
+
+      // Handle single employee invite
+      if (singleEmail && !uploadedFile) {
+        const response = await fetch('/api/employees/invite', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            employees: [{
+              name: singleName,
+              role: singleRole,
+              email: singleEmail
+            }],
+            companyId
+          }),
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+          throw new Error(responseData.error || 'Failed to send invitation');
+        }
+
+        setInviteResults(responseData);
+        setSingleName('');
+        setSingleRole('');
+        setSingleEmail('');
+        
+        // Close modal after 3 seconds if successful
+        if (responseData.summary.failed === 0) {
+          setTimeout(() => {
+            setShowAddModal(false);
+            setInviteResults(null);
+          }, 3000);
+        }
+        setIsProcessing(false);
+        return;
+      }
+
+      // Handle CSV bulk upload
+      if (!uploadedFile) return;
 
       // Parse CSV file
       Papa.parse(uploadedFile, {
@@ -393,12 +439,65 @@ export default function EmployerDashboard() {
             </div>
 
             <form onSubmit={handleSubmitInvites}>
-              {/* File Upload Area */}
+              {/* Single Employee Form */}
+              <div className="space-y-3 mb-6">
+                <div>
+                  <label className="block text-xs font-medium text-brand-dark mb-1">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    value={singleName}
+                    onChange={(e) => setSingleName(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green focus:border-brand-green"
+                    placeholder="John Doe"
+                    disabled={isProcessing || !!uploadedFile}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-brand-dark mb-1">
+                    Role
+                  </label>
+                  <input
+                    type="text"
+                    value={singleRole}
+                    onChange={(e) => setSingleRole(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green focus:border-brand-green"
+                    placeholder="Software Engineer"
+                    disabled={isProcessing || !!uploadedFile}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-brand-dark mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={singleEmail}
+                    onChange={(e) => setSingleEmail(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-green focus:border-brand-green"
+                    placeholder="john@company.com"
+                    disabled={isProcessing || !!uploadedFile}
+                  />
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="relative mb-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-brand-gray/20"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-white px-2 text-brand-gray">Or upload CSV for bulk invite</span>
+                </div>
+              </div>
+
+              {/* CSV Upload Area */}
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
                   isDragging
                     ? 'border-brand-green bg-brand-cream'
                     : 'border-brand-gray/30 hover:border-brand-gray/50'
@@ -410,18 +509,18 @@ export default function EmployerDashboard() {
                   accept=".csv"
                   onChange={handleFileSelect}
                   className="hidden"
-                  disabled={isProcessing}
+                  disabled={isProcessing || !!(singleName || singleRole || singleEmail)}
                 />
                 <label htmlFor="file-upload" className="cursor-pointer">
                   <div className="flex flex-col items-center">
-                    <svg className="w-10 h-10 text-brand-gray mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-8 h-8 text-brand-gray mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    <p className="text-sm text-brand-dark font-medium mb-1">
-                      {uploadedFile ? uploadedFile.name : 'Drop CSV file here or click to browse'}
+                    <p className="text-xs text-brand-dark font-medium mb-1">
+                      {uploadedFile ? uploadedFile.name : 'Drop CSV file or click to browse'}
                     </p>
                     <p className="text-xs text-brand-gray">
-                      CSV with Name, Role, Email columns
+                      Name, Role, Email columns
                     </p>
                   </div>
                 </label>
@@ -494,6 +593,9 @@ export default function EmployerDashboard() {
                   onClick={() => {
                     setShowAddModal(false);
                     setUploadedFile(null);
+                    setSingleName('');
+                    setSingleRole('');
+                    setSingleEmail('');
                     setInviteResults(null);
                   }}
                   className="px-3 py-1.5 text-sm text-brand-dark hover:text-brand-black"
@@ -503,10 +605,10 @@ export default function EmployerDashboard() {
                 </button>
                 <button
                   type="submit"
-                  disabled={!uploadedFile || isProcessing}
+                  disabled={(!uploadedFile && !singleEmail) || isProcessing}
                   className="bg-[#1b1d1a] px-4 py-1.5 text-sm rounded-lg text-white hover:bg-[#0e1414] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isProcessing ? 'Sending...' : 'Send invite links'}
+                  {isProcessing ? 'Sending...' : uploadedFile ? 'Send invite links' : 'Send invite link'}
                 </button>
               </div>
             </form>
