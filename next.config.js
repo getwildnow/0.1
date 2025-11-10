@@ -7,6 +7,9 @@ const nextConfig = {
       bodySizeLimit: '2mb',
     },
   },
+  // Ensure proper runtime configuration for Railway
+  serverRuntimeConfig: {},
+  publicRuntimeConfig: {},
 }
 
 module.exports = nextConfig

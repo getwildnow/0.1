@@ -1,5 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// Helper function to make HTTP request with retry logic
+async function makeVeriffRequest(url: string, options: RequestInit, retries = 3): Promise<Response> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    let timeoutId: NodeJS.Timeout | null = null
+    try {
+      console.log(`Attempt ${attempt} of ${retries} to connect to Veriff API`)
+      
+      // Add timeout using AbortController
+      const controller = new AbortController()
+      timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+      
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        // Ensure proper headers for Railway/Node.js environment
+        headers: {
+          ...options.headers,
+          'User-Agent': 'Next.js-Veriff-Integration',
+          'Accept': 'application/json',
+        },
+      })
+      
+      if (timeoutId) clearTimeout(timeoutId)
+      return response
+    } catch (error) {
+      if (timeoutId) clearTimeout(timeoutId)
+      
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error(`Attempt ${attempt} failed:`, errorMessage)
+      
+      // If it's the last attempt, throw the error
+      if (attempt === retries) {
+        // Check if it's a timeout or connection error
+        if (errorMessage.includes('aborted') || errorMessage.includes('timeout')) {
+          throw new Error(`Connection timeout: Veriff API did not respond within 30 seconds`)
+        }
+        if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('ENOTFOUND')) {
+          throw new Error(`DNS/Connection error: Cannot reach Veriff API. Check network configuration.`)
+        }
+        throw new Error(`Failed to connect to Veriff API after ${retries} attempts: ${errorMessage}`)
+      }
+      
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+    }
+  }
+  
+  throw new Error('Unexpected error in retry logic')
+}
+
 export async function POST(request: NextRequest) {
   try {
     const veriffApiUrl = 'https://api.veriff.com/v1/sessions'
@@ -21,7 +71,7 @@ export async function POST(request: NextRequest) {
     
     let response
     try {
-      response = await fetch(veriffApiUrl, {
+      response = await makeVeriffRequest(veriffApiUrl, {
         method: 'POST',
         headers: {
           'X-AUTH-CLIENT': 'bc193001-958f-45ca-931f-c6a040a59ff9',
@@ -37,8 +87,13 @@ export async function POST(request: NextRequest) {
         cause: fetchError instanceof Error ? fetchError.cause : undefined,
       })
       
-      // Try alternative approach using node-fetch style
-      throw new Error(`Failed to connect to Veriff API: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}. This might be a network/firewall issue.`)
+      return NextResponse.json(
+        { 
+          error: fetchError instanceof Error ? fetchError.message : 'Failed to connect to Veriff API',
+          details: 'Please check Railway logs for more information. This might be a network configuration issue.'
+        },
+        { status: 503 }
+      )
     }
 
     const responseText = await response.text()
