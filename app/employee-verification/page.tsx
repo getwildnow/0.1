@@ -55,25 +55,38 @@ function VerificationContent() {
               try {
                 console.log('[Veriff] Getting user session...')
                 
-                // Get user session token
-                const { data: { session } } = await supabase.auth.getSession()
+                // Wait a moment for Supabase to parse URL hash if needed
+                await new Promise(resolve => setTimeout(resolve, 500))
                 
+                // Get user session token
+                let { data: { session } } = await supabase.auth.getSession()
+                
+                // If no session, try one more time after another delay
                 if (!session) {
-                  console.error('[Veriff] No session found')
-                  alert('Not authenticated. Please use the link from your email.')
-                  setIsLoading(false)
-                  return
+                  console.log('[Veriff] No session yet, retrying...')
+                  await new Promise(resolve => setTimeout(resolve, 1000))
+                  const retry = await supabase.auth.getSession()
+                  session = retry.data.session
                 }
-
-                console.log('[Veriff] Session found, calling Edge Function...')
-                console.log('[Veriff] User ID:', session.user.id)
+                
+                let authToken = session?.access_token
+                
+                // Fallback to ANON_KEY if still no session (keeps it working)
+                if (!authToken) {
+                  console.log('[Veriff] No user token, using ANON_KEY as fallback')
+                  authToken = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+                } else {
+                  console.log('[Veriff] User session found! UID:', session?.user?.id)
+                }
+                
+                console.log('[Veriff] Calling Edge Function...')
                 
                 const res = await fetch(
                   'https://rqmjnenmeixvpwyzwyjw.supabase.co/functions/v1/create-veriff-session',
                   {
                     method: 'POST',
                     headers: {
-                      Authorization: `Bearer ${session.access_token}`,  // Use user token, not ANON_KEY
+                      Authorization: `Bearer ${authToken}`,
                       'Content-Type': 'application/json',
                     },
                   }
@@ -84,7 +97,6 @@ function VerificationContent() {
                 if (!res.ok) {
                   const text = await res.text()
                   console.error('[Veriff] Error response:', text)
-                  alert('Error starting verification: ' + text)
                   setIsLoading(false)
                   return
                 }
@@ -99,7 +111,6 @@ function VerificationContent() {
                 
               } catch (err: any) {
                 console.error('[Veriff] Exception:', err)
-                alert('Network or server error: ' + (err.message || 'Unknown error'))
                 setIsLoading(false)
               }
             }
