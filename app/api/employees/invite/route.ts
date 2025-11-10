@@ -92,8 +92,8 @@ export async function POST(request: NextRequest) {
           | { id: string; user_id: string | null }
           | null
 
-        // Send invite with redirect directly to dashboard
-        const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/employee/dashboard`
+        // Send invite with redirect to auth callback, which will then redirect to dashboard
+        const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback?next=/employee/dashboard`
         console.log(`[Invite] Sending invitation to ${email} with redirect: ${redirectUrl}`)
 
         console.log(`[Invite] Creating user with metadata:`, { name, role, company_id: companyId, company_name: company.name })
