@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function EmployeeVerificationPage() {
+function VerificationContent() {
   const searchParams = useSearchParams()
   const [founderName, setFounderName] = useState('')
   const [companyName, setCompanyName] = useState('')
@@ -77,3 +77,14 @@ export default function EmployeeVerificationPage() {
   )
 }
 
+export default function EmployeeVerificationPage() {
+  return (
+    <Suspense fallback={
+      <div className="bg-brand-cream min-h-screen flex items-center justify-center">
+        <p className="text-brand-gray">Loading...</p>
+      </div>
+    }>
+      <VerificationContent />
+    </Suspense>
+  )
+}
