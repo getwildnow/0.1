@@ -21,20 +21,33 @@ export default function EmployeeDashboardLayout({
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       )
 
-      // Simple auth check only
-      const { data: { user } } = await supabase.auth.getUser()
+      console.log('[Layout] Starting auth check with retry logic...')
 
-      console.log('[Layout] Auth check:', user ? `Authenticated: ${user.id}` : 'Not authenticated')
+      // Retry up to 5 times with exponential backoff to allow Supabase to process URL hash tokens
+      for (let attempt = 0; attempt < 5; attempt++) {
+        console.log(`[Layout] Auth attempt ${attempt + 1}/5`)
+        
+        const { data: { user } } = await supabase.auth.getUser()
 
-      if (!user) {
-        console.log('[Layout] No user found, redirecting to login...')
-        router.push('/employee/login')
-        return
+        if (user) {
+          console.log('[Layout] ✅ User authenticated!')
+          console.log('[Layout] - User ID:', user.id)
+          console.log('[Layout] - Email:', user.email)
+          console.log('[Layout] - Name:', user.user_metadata?.name)
+          setIsVerified(true)
+          setIsLoading(false)
+          return
+        }
+
+        // Wait before retry with exponential backoff (100ms, 200ms, 400ms, 800ms, 1600ms)
+        const delay = 100 * Math.pow(2, attempt)
+        console.log(`[Layout] No user found, waiting ${delay}ms before retry...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
       }
 
-      console.log('[Layout] ✅ User authenticated, showing dashboard')
-      setIsVerified(true)
-      setIsLoading(false)
+      // After all retries failed, redirect to login
+      console.log('[Layout] ❌ All auth attempts failed, redirecting to login...')
+      router.push('/employee/login')
     }
 
     checkAuth()
