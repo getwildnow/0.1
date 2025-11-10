@@ -16,7 +16,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           vendorData: 'user_12345',
-          redirect: 'https://open.spotify.com/intl-de/track/4TeIrimd2REmDGGeAAEUog',
+          redirect: `${window.location.origin}/verification-complete`,
         }),
       })
 
