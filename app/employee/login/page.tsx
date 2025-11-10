@@ -1,16 +1,29 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
-export default function EmployeeLogin() {
+function LoginContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const errorParam = searchParams.get('error')
+    
+    if (errorParam === 'link_expired') {
+      setError('Your invitation link has expired. Please contact your HR team for a new invite.')
+    } else if (errorParam === 'auth_failed') {
+      setError('Authentication failed. Please try again or contact support.')
+    } else if (errorParam === 'session_failed') {
+      setError('Failed to establish session. Please try again or contact support.')
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -118,5 +131,17 @@ export default function EmployeeLogin() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function EmployeeLogin() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-brand-cream flex items-center justify-center">
+        <p className="text-brand-gray">Loading...</p>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   )
 }
