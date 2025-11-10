@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
           results.push({
             email,
             success: false,
-            error: 'Employee already invited'
+            error: 'Employee already invited to this company'
           })
           continue
         }
@@ -128,7 +128,46 @@ export async function POST(request: NextRequest) {
           }
         )
 
+        // Check if error is because user already exists in Auth
         if (authError) {
+          // If user already exists in Supabase Auth, that's okay - we can still create the employee record
+          if (authError.message.includes('already registered') || authError.message.includes('already been registered')) {
+            // User exists in Auth, try to get their ID and create employee record
+            const { data: existingUser } = await adminClient.auth.admin.listUsers()
+            const user = existingUser.users.find(u => u.email === email)
+            
+            if (user) {
+              // Create employee record with existing user ID
+              const { error: employeeError } = await supabase
+                .from('employees')
+                .insert({
+                  user_id: user.id,
+                  company_id: companyId,
+                  name,
+                  role: role || null,
+                  email,
+                  status: 'invited',
+                  invited_at: new Date().toISOString()
+                })
+
+              if (employeeError) {
+                results.push({
+                  email,
+                  success: false,
+                  error: employeeError.message
+                })
+                continue
+              }
+
+              results.push({
+                email,
+                success: true
+              })
+              continue
+            }
+          }
+          
+          // Other auth errors
           results.push({
             email,
             success: false,

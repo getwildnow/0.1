@@ -469,16 +469,31 @@ Make sure the first row is the header row.`;
               {inviteResults && (
                 <div className="mt-4">
                   {inviteResults.success ? (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <p className="text-sm font-medium text-green-800 mb-2">
-                        ✓ Invitations sent successfully!
-                      </p>
-                      <p className="text-xs text-green-700">
-                        {inviteResults.summary.successful} of {inviteResults.summary.total} employees invited
-                      </p>
+                    <div>
+                      {inviteResults.summary.successful > 0 && (
+                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg mb-2">
+                          <p className="text-sm font-medium text-green-800">
+                            ✓ {inviteResults.summary.successful} {inviteResults.summary.successful === 1 ? 'employee' : 'employees'} invited successfully!
+                          </p>
+                          <p className="text-xs text-green-700 mt-1">
+                            Invitation emails have been sent.
+                          </p>
+                        </div>
+                      )}
                       {inviteResults.summary.failed > 0 && (
-                        <div className="mt-2 text-xs text-red-600">
-                          {inviteResults.summary.failed} failed - see details below
+                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="text-sm font-medium text-yellow-800 mb-2">
+                            ⚠ {inviteResults.summary.failed} {inviteResults.summary.failed === 1 ? 'employee' : 'employees'} could not be invited
+                          </p>
+                          <div className="text-xs text-yellow-700 space-y-1">
+                            {inviteResults.results
+                              .filter((r: any) => !r.success)
+                              .map((r: any, idx: number) => (
+                                <div key={idx}>
+                                  • {r.email}: {r.error}
+                                </div>
+                              ))}
+                          </div>
                         </div>
                       )}
                     </div>
