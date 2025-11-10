@@ -92,23 +92,8 @@ export default function EmployerDashboard() {
   const [sortBy, setSortBy] = useState('Name');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [inviteResults, setInviteResults] = useState<any>(null);
-
-  const chatGPTPrompt = `Create a CSV file with employee data for bulk upload. The CSV should have exactly 3 columns: Name, Role, Email. Include 5-10 sample employees with realistic data. Format:
-
-Name,Role,Email
-John Doe,Software Engineer,john.doe@company.com
-Jane Smith,Product Manager,jane.smith@company.com
-
-Make sure the first row is the header row.`;
-
-  const handleCopyPrompt = () => {
-    navigator.clipboard.writeText(chatGPTPrompt);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -405,16 +390,6 @@ Make sure the first row is the header row.`;
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-brand-black">Add Employees</h2>
-              <button
-                onClick={handleCopyPrompt}
-                className="text-xs text-brand-gray hover:text-brand-dark flex items-center gap-1"
-                title="Copy ChatGPT prompt"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                {copied ? 'Copied!' : ''}
-              </button>
             </div>
 
             <form onSubmit={handleSubmitInvites}>
