@@ -50,6 +50,9 @@ export interface Database {
           role: 'employee' | 'admin' | 'owner'
           phone: string | null
           date_of_birth: string | null
+          address: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           coverage_status: 'active' | 'inactive' | 'pending'
           created_at: string
           updated_at: string
@@ -64,6 +67,9 @@ export interface Database {
           role?: 'employee' | 'admin' | 'owner'
           phone?: string | null
           date_of_birth?: string | null
+          address?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           coverage_status?: 'active' | 'inactive' | 'pending'
           created_at?: string
           updated_at?: string
@@ -78,6 +84,9 @@ export interface Database {
           role?: 'employee' | 'admin' | 'owner'
           phone?: string | null
           date_of_birth?: string | null
+          address?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           coverage_status?: 'active' | 'inactive' | 'pending'
           created_at?: string
           updated_at?: string
