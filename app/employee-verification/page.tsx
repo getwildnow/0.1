@@ -4,8 +4,8 @@ import { useEffect, useState, Suspense, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createBrowserClient } from '@supabase/ssr'
-import Veriff from '@veriff/js-sdk'
-import { createVeriffFrame } from '@veriff/incontext-sdk'
+
+export const dynamic = 'force-dynamic'
 
 function VerificationContent() {
   const searchParams = useSearchParams()
@@ -19,55 +19,90 @@ function VerificationContent() {
   const veriffMountedRef = useRef(false)
 
   useEffect(() => {
-    const checkAuthAndLoad = async () => {
-      // Check for auth errors in URL
-      const error = searchParams.get('error')
-      const errorCode = searchParams.get('error_code')
-      
-      if (error === 'access_denied' && errorCode === 'otp_expired') {
-        setError('Your invitation link has expired. Please request a new invitation from your employer.')
-        return
-      }
-
+    const initVeriff = async () => {
       // Get company info from user metadata
       const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       )
 
-      try {
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
-        
-        console.log('[Auth] User check:', user ? 'Authenticated' : 'Not authenticated', authError)
-        
-        if (authError) {
-          console.error('[Auth] Error:', authError)
-          setError('Authentication error. Please try using the link from your email again.')
-          return
-        }
-        
-        if (!user) {
-          // Only show error if there are no auth params in URL (not in the middle of auth flow)
-          const hasAuthParams = searchParams.has('access_token') || searchParams.has('refresh_token')
-          if (!hasAuthParams) {
-            setError('Authentication required. Please use the link from your invitation email.')
-          }
-          return
-        }
-        
-        // User is authenticated
-        console.log('[Auth] User authenticated:', user.id)
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user?.user_metadata) {
         const companyName = user.user_metadata?.company_name || 'Get Wild'
         setCompanyName(companyName)
         setFounderName('your employer')
-        
-      } catch (err) {
-        console.error('[Auth] Exception:', err)
-        setError('Failed to check authentication. Please refresh the page.')
+      }
+
+      // Initialize Veriff SDK (client-side only with dynamic import)
+      if (typeof window !== 'undefined' && !veriffInstanceRef.current && !veriffMountedRef.current) {
+        try {
+          console.log('[Veriff] Dynamically loading SDK...')
+          
+          // Dynamic import to avoid SSR issues
+          Promise.all([
+            import('@veriff/js-sdk'),
+            import('@veriff/incontext-sdk')
+          ]).then(([VeriffModule, InContextModule]) => {
+            const Veriff = VeriffModule.default
+            const { createVeriffFrame } = InContextModule
+            
+            console.log('[Veriff] Initializing SDK...')
+            
+            const veriffInstance = Veriff({
+              apiKey: process.env.NEXT_PUBLIC_VERIFF_API_KEY || 'bc193001-958f-45ca-931f-c6a040a59ff9',
+              parentId: 'veriff-root',
+              onSession: function(err: any, response: any) {
+                if (err) {
+                  console.error('[Veriff] Session error:', err)
+                  setError('Failed to start verification. Please try again.')
+                  setIsLoading(false)
+                  return
+                }
+
+                console.log('[Veriff] Session created:', response)
+                
+                // Open InContext modal
+                createVeriffFrame({
+                  url: response.verification.url,
+                  onEvent: (msg: string) => {
+                    console.log('[Veriff] Event:', msg)
+                    
+                    if (msg === 'FINISHED') {
+                      console.log('[Veriff] Verification submitted')
+                      setVerificationStatus('submitted')
+                      pollVerificationStatus()
+                    } else if (msg === 'CANCELED') {
+                      console.log('[Veriff] Verification canceled')
+                      setIsLoading(false)
+                    }
+                  }
+                })
+                
+                setIsLoading(false)
+              }
+            })
+
+            veriffInstanceRef.current = veriffInstance
+            
+            // Mount the Veriff SDK
+            veriffInstance.mount({
+              submitBtnText: 'Start Verification'
+            })
+            
+            veriffMountedRef.current = true
+            console.log('[Veriff] SDK mounted successfully')
+          }).catch((err) => {
+            console.error('[Veriff] Failed to load SDK:', err)
+          })
+          
+        } catch (err) {
+          console.error('[Veriff] Initialization error:', err)
+        }
       }
     }
 
-    checkAuthAndLoad()
+    initVeriff()
   }, [searchParams])
 
 
@@ -111,65 +146,6 @@ function VerificationContent() {
     }, 2000) // Poll every 2 seconds
   }
 
-  // Start verification process - JavaScript SDK + InContext
-  const handleStartVerification = async () => {
-    setIsLoading(true)
-    setError('')
-
-    try {
-      // Create Veriff session via our API
-      console.log('[Veriff] Creating session...')
-      const response = await fetch('/api/veriff/create-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('[Veriff] Session creation failed:', errorData)
-        
-        // Check for specific error messages
-        if (errorData.error?.includes('VERIFF_API_KEY')) {
-          throw new Error('Verification service not configured. Please contact support.')
-        }
-        
-        throw new Error(errorData.error || 'Failed to create verification session')
-      }
-
-      const { sessionUrl, sessionId } = await response.json()
-      console.log('[Veriff] Session created:', sessionId)
-      console.log('[Veriff] Opening InContext modal with URL:', sessionUrl)
-
-      // Use InContext SDK to open modal
-      createVeriffFrame({
-        url: sessionUrl,
-        onEvent: (msg: string) => {
-          console.log('[Veriff] Event:', msg)
-          
-          if (msg === 'FINISHED') {
-            // User completed verification
-            console.log('[Veriff] Verification submitted, polling for result...')
-            setVerificationStatus('submitted')
-            setIsLoading(false)
-            pollVerificationStatus()
-          } else if (msg === 'CANCELED') {
-            console.log('[Veriff] User canceled verification')
-            setIsLoading(false)
-            setError('Verification was canceled. Click "Start Verification" to try again.')
-          }
-        },
-      })
-
-      setIsLoading(false)
-
-    } catch (error: any) {
-      console.error('[Veriff] Error:', error)
-      setError(error.message || 'Failed to start verification')
-      setIsLoading(false)
-    }
-  }
 
   return (
     <div className="bg-brand-cream min-h-screen flex flex-col">
@@ -197,19 +173,11 @@ function VerificationContent() {
             </p>
           </div>
 
-          {/* Verification Button - Using our custom button to trigger SDK */}
-          <div>
-            {verificationStatus === 'idle' && !error && (
-              <button
-                id="start-verification-btn"
-                onClick={handleStartVerification}
-                disabled={isLoading}
-                className="bg-[#1b1d1a] px-8 py-4 rounded-xl text-white text-lg font-medium hover:bg-[#0e1414] transition-colors w-full max-w-xs mx-auto block disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Loading...' : 'Start Verification'}
-              </button>
-            )}
+          {/* Veriff SDK Container - SDK will render its button here */}
+          <div id="veriff-root" className="flex justify-center"></div>
 
+          {/* Status Messages */}
+          <div>
             {verificationStatus === 'submitted' && (
               <div className="text-center">
                 <div className="inline-flex items-center space-x-2 text-brand-dark">
@@ -237,23 +205,6 @@ function VerificationContent() {
               </div>
             )}
 
-            {error && (
-              <div className="text-center max-w-md mx-auto">
-                <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-                  <div className="text-red-600 text-lg font-medium mb-2">
-                    {error.includes('expired') ? '⏰ Link Expired' : '⚠️ Error'}
-                  </div>
-                  <p className="text-red-700 text-sm">
-                    {error}
-                  </p>
-                  {error.includes('expired') && (
-                    <p className="text-red-600 text-xs mt-3">
-                      Please contact your employer to send a new invitation link.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Additional Info */}
