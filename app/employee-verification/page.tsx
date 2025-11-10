@@ -53,35 +53,53 @@ function VerificationContent() {
               setIsLoading(true)
               
               try {
-                console.log('[Veriff] Calling Supabase Edge Function...')
+                console.log('[Veriff] Getting user session...')
+                
+                // Get user session token
+                const { data: { session } } = await supabase.auth.getSession()
+                
+                if (!session) {
+                  console.error('[Veriff] No session found')
+                  alert('Not authenticated. Please use the link from your email.')
+                  setIsLoading(false)
+                  return
+                }
+
+                console.log('[Veriff] Session found, calling Edge Function...')
+                console.log('[Veriff] User ID:', session.user.id)
                 
                 const res = await fetch(
                   'https://rqmjnenmeixvpwyzwyjw.supabase.co/functions/v1/create-veriff-session',
                   {
                     method: 'POST',
                     headers: {
-                      Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+                      Authorization: `Bearer ${session.access_token}`,  // Use user token, not ANON_KEY
+                      'Content-Type': 'application/json',
                     },
                   }
                 )
 
+                console.log('[Veriff] Edge Function response status:', res.status)
+
                 if (!res.ok) {
                   const text = await res.text()
-                  console.error('[Veriff] Error:', text)
-                  alert('Error starting verification.')
+                  console.error('[Veriff] Error response:', text)
+                  alert('Error starting verification: ' + text)
                   setIsLoading(false)
                   return
                 }
 
                 const data = await res.json()
-                console.log('[Veriff] Session created, redirecting to Veriff...')
+                console.log('[Veriff] Session created successfully!')
+                console.log('[Veriff] Session ID:', data.sessionId)
+                console.log('[Veriff] Redirecting to Veriff...')
                 
                 // Redirect to Veriff flow
                 window.location.href = data.url
                 
-              } catch (err) {
-                console.error('[Veriff] Fetch failed:', err)
-                alert('Network or server error.')
+              } catch (err: any) {
+                console.error('[Veriff] Exception:', err)
+                alert('Network or server error: ' + (err.message || 'Unknown error'))
                 setIsLoading(false)
               }
             }
