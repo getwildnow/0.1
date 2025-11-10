@@ -52,9 +52,11 @@ export default function SignUpPage() {
         throw new Error(data.error || 'Failed to create account')
       }
 
-      // Store founder ID in localStorage
+      // Store founder and company info in localStorage
       localStorage.setItem('founderId', data.founder.id)
       localStorage.setItem('founderEmail', data.founder.email)
+      localStorage.setItem('companyId', data.company.id)
+      localStorage.setItem('companyName', data.company.name)
 
       // Redirect to dashboard
       router.push('/employer/dashboard')

@@ -25,17 +25,37 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    const { data, error } = await supabase
+    // Create founder
+    const { data: founder, error: founderError } = await supabase
       .from('founders')
       .insert({ email, name, company_name })
       .select()
       .single()
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+    if (founderError) {
+      return NextResponse.json({ error: founderError.message }, { status: 400 })
     }
 
-    return NextResponse.json({ founder: data })
+    // Create company for the founder
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .insert({ 
+        founder_id: founder.id, 
+        name: company_name 
+      })
+      .select()
+      .single()
+
+    if (companyError) {
+      // Rollback: delete the founder if company creation fails
+      await supabase.from('founders').delete().eq('id', founder.id)
+      return NextResponse.json({ error: companyError.message }, { status: 400 })
+    }
+
+    return NextResponse.json({ 
+      founder, 
+      company 
+    })
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || 'Failed to create founder' },

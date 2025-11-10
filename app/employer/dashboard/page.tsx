@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Papa from 'papaparse';
 import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
@@ -92,6 +93,8 @@ export default function EmployerDashboard() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [inviteResults, setInviteResults] = useState<any>(null);
 
   const chatGPTPrompt = `Create a CSV file with employee data for bulk upload. The CSV should have exactly 3 columns: Name, Role, Email. Include 5-10 sample employees with realistic data. Format:
 
@@ -130,6 +133,96 @@ Make sure the first row is the header row.`;
     const file = e.target.files?.[0];
     if (file) {
       setUploadedFile(file);
+    }
+  };
+
+  const handleSubmitInvites = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!uploadedFile) return;
+
+    setIsProcessing(true);
+    setInviteResults(null);
+
+    try {
+      // Get company ID from localStorage
+      const companyId = localStorage.getItem('companyId');
+      if (!companyId) {
+        throw new Error('Company ID not found. Please log in again.');
+      }
+
+      // Parse CSV file
+      Papa.parse(uploadedFile, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          try {
+            // Validate CSV has required columns
+            const csvData = results.data as any[];
+            if (csvData.length === 0) {
+              throw new Error('CSV file is empty');
+            }
+
+            // Map CSV data to employee format
+            const employees = csvData.map((row: any) => ({
+              name: row.Name || row.name || '',
+              role: row.Role || row.role || '',
+              email: row.Email || row.email || ''
+            }));
+
+            // Send to API
+            const response = await fetch('/api/employees/invite', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                employees,
+                companyId
+              }),
+            });
+
+            const responseData = await response.json();
+
+            if (!response.ok) {
+              throw new Error(responseData.error || 'Failed to send invitations');
+            }
+
+            setInviteResults(responseData);
+            setUploadedFile(null);
+            
+            // Close modal after 3 seconds if all successful
+            if (responseData.summary.failed === 0) {
+              setTimeout(() => {
+                setShowAddModal(false);
+                setInviteResults(null);
+              }, 3000);
+            }
+
+          } catch (err: any) {
+            setInviteResults({
+              success: false,
+              error: err.message
+            });
+          } finally {
+            setIsProcessing(false);
+          }
+        },
+        error: (error) => {
+          setInviteResults({
+            success: false,
+            error: 'Failed to parse CSV file: ' + error.message
+          });
+          setIsProcessing(false);
+        }
+      });
+
+    } catch (err: any) {
+      setInviteResults({
+        success: false,
+        error: err.message
+      });
+      setIsProcessing(false);
     }
   };
 
@@ -324,70 +417,109 @@ Make sure the first row is the header row.`;
               </button>
             </div>
 
-            {/* File Upload Area */}
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                isDragging
-                  ? 'border-brand-green bg-brand-cream'
-                  : 'border-brand-gray/30 hover:border-brand-gray/50'
-              }`}
-            >
-              <input
-                type="file"
-                id="file-upload"
-                accept=".csv"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              <label htmlFor="file-upload" className="cursor-pointer">
-                <div className="flex flex-col items-center">
-                  <svg className="w-10 h-10 text-brand-gray mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <p className="text-sm text-brand-dark font-medium mb-1">
-                    {uploadedFile ? uploadedFile.name : 'Drop CSV file here or click to browse'}
-                  </p>
-                  <p className="text-xs text-brand-gray">
-                    CSV with Name, Role, Email columns
-                  </p>
-                </div>
-              </label>
-            </div>
+            <form onSubmit={handleSubmitInvites}>
+              {/* File Upload Area */}
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                  isDragging
+                    ? 'border-brand-green bg-brand-cream'
+                    : 'border-brand-gray/30 hover:border-brand-gray/50'
+                }`}
+              >
+                <input
+                  type="file"
+                  id="file-upload"
+                  accept=".csv"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  disabled={isProcessing}
+                />
+                <label htmlFor="file-upload" className="cursor-pointer">
+                  <div className="flex flex-col items-center">
+                    <svg className="w-10 h-10 text-brand-gray mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p className="text-sm text-brand-dark font-medium mb-1">
+                      {uploadedFile ? uploadedFile.name : 'Drop CSV file here or click to browse'}
+                    </p>
+                    <p className="text-xs text-brand-gray">
+                      CSV with Name, Role, Email columns
+                    </p>
+                  </div>
+                </label>
+              </div>
 
-            {uploadedFile && (
-              <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
-                <span className="text-xs text-green-800">{uploadedFile.name}</span>
+              {uploadedFile && !isProcessing && (
+                <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
+                  <span className="text-xs text-green-800">{uploadedFile.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setUploadedFile(null)}
+                    className="text-xs text-green-600 hover:text-green-800"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+
+              {/* Results Display */}
+              {inviteResults && (
+                <div className="mt-4">
+                  {inviteResults.success ? (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm font-medium text-green-800 mb-2">
+                        ✓ Invitations sent successfully!
+                      </p>
+                      <p className="text-xs text-green-700">
+                        {inviteResults.summary.successful} of {inviteResults.summary.total} employees invited
+                      </p>
+                      {inviteResults.summary.failed > 0 && (
+                        <div className="mt-2 text-xs text-red-600">
+                          {inviteResults.summary.failed} failed - see details below
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm font-medium text-red-800">
+                        Error: {inviteResults.error}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {isProcessing && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">Processing invitations...</p>
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-2 mt-4">
                 <button
-                  onClick={() => setUploadedFile(null)}
-                  className="text-xs text-green-600 hover:text-green-800"
+                  type="button"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setUploadedFile(null);
+                    setInviteResults(null);
+                  }}
+                  className="px-3 py-1.5 text-sm text-brand-dark hover:text-brand-black"
+                  disabled={isProcessing}
                 >
-                  Remove
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!uploadedFile || isProcessing}
+                  className="bg-[#1b1d1a] px-4 py-1.5 text-sm rounded-lg text-white hover:bg-[#0e1414] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isProcessing ? 'Sending...' : 'Send invite links'}
                 </button>
               </div>
-            )}
-
-            <div className="flex justify-end space-x-2 mt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddModal(false);
-                  setUploadedFile(null);
-                }}
-                className="px-3 py-1.5 text-sm text-brand-dark hover:text-brand-black"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={!uploadedFile}
-                className="bg-[#1b1d1a] px-4 py-1.5 text-sm rounded-lg text-white hover:bg-[#0e1414] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Send invite links
-              </button>
-            </div>
+            </form>
           </div>
         </div>
       )}
