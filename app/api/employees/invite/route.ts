@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
           | { id: string; user_id: string | null }
           | null
 
-        // Log the redirect URL for debugging
+        // Send invite with proper redirect URL
         const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/employee-verification`
         console.log(`[Invite] Sending invitation to ${email} with redirect: ${redirectUrl}`)
 

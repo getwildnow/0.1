@@ -12,98 +12,121 @@ function VerificationContent() {
   const router = useRouter()
   const [founderName, setFounderName] = useState('')
   const [companyName, setCompanyName] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true) // Start with loading state
   const [error, setError] = useState('')
   const [verificationStatus, setVerificationStatus] = useState<'idle' | 'loading' | 'submitted' | 'approved' | 'declined'>('idle')
+  const [sdkReady, setSdkReady] = useState(false)
   const veriffInstanceRef = useRef<any>(null)
   const veriffMountedRef = useRef(false)
 
+  // Load user info and prepare Veriff
   useEffect(() => {
-    const initVeriff = async () => {
-      // Get company info from user metadata
+    const init = async () => {
+      console.log('[Init] Starting initialization...')
+      
       const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       )
 
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      
+      console.log('[Init] User check:', user ? `Authenticated: ${user.id}` : 'Not authenticated')
       
       if (user?.user_metadata) {
         const companyName = user.user_metadata?.company_name || 'Get Wild'
         setCompanyName(companyName)
         setFounderName('your employer')
+        console.log('[Init] Company loaded:', companyName)
       }
 
-      // Initialize Veriff SDK (client-side only with dynamic import)
-      if (typeof window !== 'undefined' && !veriffInstanceRef.current && !veriffMountedRef.current) {
+      // Load Veriff InContext SDK
+      if (typeof window !== 'undefined' && !veriffMountedRef.current) {
         try {
-          console.log('[Veriff] Dynamically loading SDK...')
+          console.log('[Veriff] Loading InContext SDK...')
           
-          // Dynamic import to avoid SSR issues
-          Promise.all([
-            import('@veriff/js-sdk'),
-            import('@veriff/incontext-sdk')
-          ]).then(([VeriffModule, InContextModule]) => {
-            const Veriff = VeriffModule.default
-            const { createVeriffFrame } = InContextModule
-            
-            console.log('[Veriff] Initializing SDK...')
-            
-            const veriffInstance = Veriff({
-              apiKey: process.env.NEXT_PUBLIC_VERIFF_API_KEY || 'bc193001-958f-45ca-931f-c6a040a59ff9',
-              parentId: 'veriff-root',
-              onSession: function(err: any, response: any) {
-                if (err) {
-                  console.error('[Veriff] Session error:', err)
-                  setError('Failed to start verification. Please try again.')
-                  setIsLoading(false)
-                  return
+          const { createVeriffFrame } = await import('@veriff/incontext-sdk')
+          
+          // Store the start function for button click
+          veriffInstanceRef.current = {
+            start: async () => {
+              setIsLoading(true)
+              setError('')
+              
+              try {
+                console.log('[Veriff] Calling Supabase Edge Function to create session...')
+                
+                // Get current session token
+                const { data: { session } } = await supabase.auth.getSession()
+                
+                if (!session) {
+                  throw new Error('Not authenticated. Please use the link from your email.')
                 }
 
-                console.log('[Veriff] Session created:', response)
-                
-                // Open InContext modal
+                // Call Supabase Edge Function
+                const response = await fetch(
+                  `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-veriff-session`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${session.access_token}`,
+                      'Content-Type': 'application/json',
+                    },
+                  }
+                )
+
+                if (!response.ok) {
+                  const errorData = await response.json()
+                  throw new Error(errorData.error || 'Failed to create verification session')
+                }
+
+                const { sessionUrl } = await response.json()
+                console.log('[Veriff] Session created successfully, opening modal...')
+
+                // Open Veriff InContext modal
                 createVeriffFrame({
-                  url: response.verification.url,
+                  url: sessionUrl,
                   onEvent: (msg: string) => {
-                    console.log('[Veriff] Event:', msg)
+                    console.log('[Veriff] Modal event:', msg)
                     
                     if (msg === 'FINISHED') {
-                      console.log('[Veriff] Verification submitted')
+                      console.log('[Veriff] Verification submitted, polling for result...')
                       setVerificationStatus('submitted')
+                      setIsLoading(false)
                       pollVerificationStatus()
                     } else if (msg === 'CANCELED') {
-                      console.log('[Veriff] Verification canceled')
+                      console.log('[Veriff] Verification canceled by user')
                       setIsLoading(false)
                     }
-                  }
+                  },
                 })
                 
                 setIsLoading(false)
+              } catch (error: any) {
+                console.error('[Veriff] Error:', error)
+                setError(error.message)
+                setIsLoading(false)
               }
-            })
-
-            veriffInstanceRef.current = veriffInstance
-            
-            // Mount the Veriff SDK
-            veriffInstance.mount({
-              submitBtnText: 'Start Verification'
-            })
-            
-            veriffMountedRef.current = true
-            console.log('[Veriff] SDK mounted successfully')
-          }).catch((err) => {
-            console.error('[Veriff] Failed to load SDK:', err)
-          })
+            }
+          }
+          
+          veriffMountedRef.current = true
+          setSdkReady(true)
+          setIsLoading(false)
+          console.log('[Veriff] ✅ SDK ready, button will call Edge Function')
           
         } catch (err) {
-          console.error('[Veriff] Initialization error:', err)
+          console.error('[Veriff] ❌ Failed to load SDK:', err)
+          setError('Failed to load verification system. Please refresh the page.')
+          setIsLoading(false)
         }
+      } else {
+        setIsLoading(false)
       }
     }
 
-    initVeriff()
-  }, [searchParams])
+    init()
+  }, [])
 
 
   // Poll verification status
@@ -173,8 +196,45 @@ function VerificationContent() {
             </p>
           </div>
 
-          {/* Veriff SDK Container - SDK will render its button here */}
-          <div id="veriff-root" className="flex justify-center"></div>
+          {/* Verification Button */}
+          {sdkReady && !error && verificationStatus === 'idle' && (
+            <button
+              onClick={() => veriffInstanceRef.current?.start()}
+              disabled={isLoading}
+              className="bg-[#1b1d1a] px-8 py-4 rounded-xl text-white text-lg font-medium hover:bg-[#0e1414] transition-colors w-full max-w-xs mx-auto block disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Loading...' : 'Start Verification'}
+            </button>
+          )}
+
+          {/* Loading State */}
+          {isLoading && verificationStatus === 'idle' && (
+            <div className="text-center">
+              <div className="inline-flex items-center space-x-2 text-brand-dark">
+                <svg className="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-lg font-medium">Loading...</span>
+              </div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <div className="text-center max-w-md mx-auto">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+                <div className="text-red-600 text-lg font-medium mb-2">⚠️ Error</div>
+                <p className="text-red-700 text-sm">{error}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors"
+                >
+                  Refresh Page
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Status Messages */}
           <div>
