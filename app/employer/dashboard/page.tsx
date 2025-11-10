@@ -98,6 +98,20 @@ export default function EmployerDashboard() {
   const [singleRole, setSingleRole] = useState('');
   const [singleEmail, setSingleEmail] = useState('');
 
+  const invalidEmailResults =
+    inviteResults?.success
+      ? inviteResults.results?.filter(
+          (entry: any) => !entry.success && entry.error === 'Invalid email format'
+        ) || []
+      : [];
+
+  const otherFailedResults =
+    inviteResults?.success
+      ? inviteResults.results?.filter(
+          (entry: any) => !entry.success && entry.error !== 'Invalid email format'
+        ) || []
+      : [];
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -541,37 +555,39 @@ export default function EmployerDashboard() {
 
               {/* Results Display */}
               {inviteResults && (
-                <div className="mt-4">
-                  {inviteResults.success ? (
-                    <div>
-                      {inviteResults.summary.successful > 0 && (
-                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg mb-2">
-                          <p className="text-sm font-medium text-green-800">
-                            ✓ {inviteResults.summary.successful} {inviteResults.summary.successful === 1 ? 'employee' : 'employees'} invited successfully!
-                          </p>
-                          <p className="text-xs text-green-700 mt-1">
-                            Invitation emails have been sent.
-                          </p>
-                        </div>
-                      )}
-                      {inviteResults.summary.failed > 0 && (
-                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                          <p className="text-sm font-medium text-yellow-800 mb-2">
-                            ⚠ {inviteResults.summary.failed} {inviteResults.summary.failed === 1 ? 'employee' : 'employees'} could not be invited
-                          </p>
-                          <div className="text-xs text-yellow-700 space-y-1">
-                            {inviteResults.results
-                              .filter((r: any) => !r.success)
-                              .map((r: any, idx: number) => (
-                                <div key={idx}>
-                                  • {r.email}: {r.error}
-                                </div>
-                              ))}
-                          </div>
-                        </div>
-                      )}
+                <div className="mt-4 space-y-3">
+                  {inviteResults.success && inviteResults.summary?.successful > 0 && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm font-medium text-green-800">
+                        ✓ {inviteResults.summary.successful}{' '}
+                        {inviteResults.summary.successful === 1 ? 'employee' : 'employees'} invited successfully!
+                      </p>
+                      <p className="text-xs text-green-700 mt-1">
+                        Invitation emails have been sent.
+                      </p>
                     </div>
-                  ) : (
+                  )}
+
+                  {inviteResults.success && invalidEmailResults.length > 0 && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm font-medium text-brand-darkest">
+                        We couldn’t send invites to these emails — they don’t look valid:
+                      </p>
+                      <p className="text-xs text-brand-gray mt-1 break-words">
+                        {invalidEmailResults.map((entry: any) => entry.email).join(', ')}
+                      </p>
+                    </div>
+                  )}
+
+                  {inviteResults.success && otherFailedResults.length > 0 && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm font-medium text-brand-darkest">
+                        Some invitations couldn’t be sent. Please try again shortly.
+                      </p>
+                    </div>
+                  )}
+
+                  {!inviteResults.success && inviteResults.error && (
                     <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                       <p className="text-sm font-medium text-red-800">
                         Error: {inviteResults.error}

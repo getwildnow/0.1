@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@supabase/supabase-js'
 
 interface EmployeeData {
   name: string
-  role: string
+  role?: string
   email: string
 }
 
@@ -32,7 +31,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create admin client for inviting users
     const adminClient = createAdminClient()
     if (!adminClient) {
       return NextResponse.json(
@@ -41,25 +39,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create regular client for inserting employee records
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    const admin = adminClient as any
 
-    if (!supabaseUrl || !supabaseKey) {
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      )
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey)
-
-    // Verify company exists
-    const { data: company, error: companyError } = await supabase
+    const { data: company, error: companyError } = await admin
       .from('companies')
       .select('id, name')
       .eq('id', companyId)
-      .single()
+      .maybeSingle()
 
     if (companyError || !company) {
       return NextResponse.json(
@@ -70,11 +56,11 @@ export async function POST(request: NextRequest) {
 
     const results: InviteResult[] = []
 
-    // Process each employee
-    for (const employee of employees) {
-      const { name, role, email } = employee
+    for (const employee of employees as EmployeeData[]) {
+      const name = employee?.name?.trim()
+      const role = employee?.role?.trim()
+      const email = employee?.email?.trim()
 
-      // Validate employee data
       if (!name || !email) {
         results.push({
           email: email || 'unknown',
@@ -84,7 +70,6 @@ export async function POST(request: NextRequest) {
         continue
       }
 
-      // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(email)) {
         results.push({
@@ -96,26 +81,18 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        // Check if employee already exists in this company
-        const { data: existingEmployee } = await supabase
+        const { data: existingEmployee } = await admin
           .from('employees')
-          .select('id')
+          .select('id, user_id')
           .eq('company_id', companyId)
           .eq('email', email)
-          .single()
+          .maybeSingle()
 
-        if (existingEmployee) {
-          results.push({
-            email,
-            success: false,
-            error: 'Employee already invited to this company'
-          })
-          continue
-        }
+        const existingEmployeeRecord = (existingEmployee ?? null) as
+          | { id: string; user_id: string | null }
+          | null
 
-        // Invite user via Supabase Auth
-        // This creates a user in auth.users and sends an invitation email
-        const { data: authData, error: authError } = await adminClient.auth.admin.inviteUserByEmail(
+        const { data: authData, error: authError } = await admin.auth.admin.inviteUserByEmail(
           email,
           {
             data: {
@@ -128,81 +105,71 @@ export async function POST(request: NextRequest) {
           }
         )
 
-        // Check if error is because user already exists in Auth
+        let userId = authData?.user?.id || existingEmployeeRecord?.user_id || null
+
         if (authError) {
-          // If user already exists in Supabase Auth, that's okay - we can still create the employee record
-          if (authError.message.includes('already registered') || authError.message.includes('already been registered')) {
-            // User exists in Auth, try to get their ID and create employee record
-            const { data: existingUser } = await adminClient.auth.admin.listUsers()
-            const user = existingUser.users.find(u => u.email === email)
-            
-            if (user) {
-              // Create employee record with existing user ID
-              const { error: employeeError } = await supabase
-                .from('employees')
-                .insert({
-                  user_id: user.id,
-                  company_id: companyId,
-                  name,
-                  role: role || null,
-                  email,
-                  status: 'invited',
-                  invited_at: new Date().toISOString()
-                })
+          const message = authError.message.toLowerCase()
+          const alreadyRegistered =
+            message.includes('already registered') || message.includes('already been registered')
 
-              if (employeeError) {
-                results.push({
-                  email,
-                  success: false,
-                  error: employeeError.message
-                })
-                continue
-              }
-
-              results.push({
-                email,
-                success: true
-              })
-              continue
+          if (alreadyRegistered) {
+            const { data: existingUsers } = await admin.auth.admin.listUsers()
+            const foundUser = existingUsers?.users?.find(
+              (u: any) => u.email?.toLowerCase() === email.toLowerCase()
+            )
+            if (foundUser) {
+              userId = foundUser.id
             }
+          } else {
+            results.push({
+              email,
+              success: false,
+              error: authError.message
+            })
+            continue
           }
-          
-          // Other auth errors
-          results.push({
-            email,
-            success: false,
-            error: authError.message
-          })
-          continue
         }
 
-        // Create employee record in our database
-        const { error: employeeError } = await supabase
-          .from('employees')
-          .insert({
-            user_id: authData.user?.id || null,
-            company_id: companyId,
-            name,
-            role: role || null,
-            email,
-            status: 'invited',
-            invited_at: new Date().toISOString()
-          })
-
-        if (employeeError) {
-          results.push({
-            email,
-            success: false,
-            error: employeeError.message
-          })
-          continue
-        }
-
-        results.push({
+        const payload = {
+          user_id: userId,
+          company_id: companyId,
+          name,
+          role: role || null,
           email,
-          success: true
-        })
+          status: 'invited',
+          invited_at: new Date().toISOString()
+        }
 
+        if (existingEmployeeRecord) {
+          const { error: updateError } = await admin
+            .from('employees')
+            .update(payload)
+            .eq('id', existingEmployeeRecord.id)
+
+          if (updateError) {
+            results.push({
+              email,
+              success: false,
+              error: updateError.message
+            })
+            continue
+          }
+        } else {
+          const { error: insertError } = await admin
+            .from('employees')
+            .insert(payload)
+
+          if (insertError) {
+            results.push({
+              email,
+              success: false,
+              error: insertError.message
+            })
+            continue
+          }
+        }
+
+        results.push({ email, success: true })
       } catch (err: any) {
         results.push({
           email,
@@ -212,9 +179,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Calculate summary
-    const successCount = results.filter(r => r.success).length
-    const failureCount = results.filter(r => !r.success).length
+    const successCount = results.filter((r) => r.success).length
+    const failureCount = results.filter((r) => !r.success).length
 
     return NextResponse.json({
       success: true,
@@ -225,7 +191,6 @@ export async function POST(request: NextRequest) {
       },
       results
     })
-
   } catch (error: any) {
     console.error('Employee invitation error:', error)
     return NextResponse.json(
