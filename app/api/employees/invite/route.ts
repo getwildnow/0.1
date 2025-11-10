@@ -96,6 +96,8 @@ export async function POST(request: NextRequest) {
         const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/employee/dashboard`
         console.log(`[Invite] Sending invitation to ${email} with redirect: ${redirectUrl}`)
 
+        console.log(`[Invite] Creating user with metadata:`, { name, role, company_id: companyId, company_name: company.name })
+        
         const { data: authData, error: authError } = await admin.auth.admin.inviteUserByEmail(
           email,
           {
@@ -108,6 +110,9 @@ export async function POST(request: NextRequest) {
             redirectTo: redirectUrl
           }
         )
+        
+        console.log(`[Invite] User created/invited. User ID:`, authData?.user?.id)
+        console.log(`[Invite] User metadata saved:`, authData?.user?.user_metadata)
 
         let userId = authData?.user?.id || existingEmployeeRecord?.user_id || null
 
