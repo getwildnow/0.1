@@ -69,7 +69,7 @@
                 <tr>
                   <td align="center" style="padding: 0;">
                     <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 16px 48px; background-color: #1b1d1a; color: #ffffff; text-decoration: none; border-radius: 12px; font-size: 16px; font-weight: 500; text-align: center;">
-                      Start Verification
+                      Verify Email
                     </a>
                   </td>
                 </tr>
