@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
 
 interface ProfileData {
   name: string
@@ -9,12 +8,8 @@ interface ProfileData {
   phone: string
   dateOfBirth: string
   address: string
-  emergencyContact: string
-  emergencyPhone: string
   role: string
   companyName: string
-  memberSince: string
-  coverageStatus: string
 }
 
 export default function ProfilePage() {
@@ -24,12 +19,8 @@ export default function ProfilePage() {
     phone: '',
     dateOfBirth: '',
     address: '',
-    emergencyContact: '',
-    emergencyPhone: '',
     role: '',
-    companyName: '',
-    memberSince: '',
-    coverageStatus: 'active'
+    companyName: ''
   })
 
   const [loading, setLoading] = useState(true)
@@ -49,48 +40,51 @@ export default function ProfilePage() {
 
       const response = await fetch('/api/employee/profile')
       
+      console.log('[Profile] API response status:', response.status)
+      
       if (!response.ok) {
-        throw new Error('Failed to load profile')
+        const errorText = await response.text()
+        console.error('[Profile] API error response:', errorText)
+        
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { error: errorText }
+        }
+        
+        throw new Error(errorData.error || `API returned ${response.status}`)
       }
 
       const data = await response.json()
-      console.log('[Profile] Loaded data:', data)
+      console.log('[Profile] ✅ Loaded data:', data)
 
-      // Combine first and last name
-      const fullName = [data.employee.first_name, data.employee.last_name]
+      // Combine first and last name, or use metadata name
+      const fullName = [data.employee?.first_name, data.employee?.last_name]
         .filter(Boolean)
-        .join(' ') || data.user.metadata?.name || ''
+        .join(' ') || data.user?.metadata?.name || ''
 
       // Format date for input (YYYY-MM-DD)
-      const dateOfBirth = data.employee.date_of_birth || ''
-
-      // Format member since date
-      const memberSince = data.employee.created_at 
-        ? new Date(data.employee.created_at).toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })
-        : 'N/A'
+      const dateOfBirth = data.employee?.date_of_birth || ''
 
       setProfileInfo({
         name: fullName,
-        email: data.user.email || '',
-        phone: data.employee.phone || '',
+        email: data.user?.email || '',
+        phone: data.employee?.phone || '',
         dateOfBirth: dateOfBirth,
-        address: data.employee.address || '',
-        emergencyContact: data.employee.emergency_contact_name || '',
-        emergencyPhone: data.employee.emergency_contact_phone || '',
-        role: data.user.metadata?.role || data.employee.role || '',
-        companyName: data.user.metadata?.company_name || '',
-        memberSince: memberSince,
-        coverageStatus: data.employee.coverage_status || 'active'
+        address: data.employee?.address || '',
+        role: data.user?.metadata?.role || data.employee?.role || '',
+        companyName: data.user?.metadata?.company_name || ''
       })
 
-      console.log('[Profile] Profile loaded successfully')
+      console.log('[Profile] ✅ Profile loaded successfully:', {
+        name: fullName,
+        email: data.user?.email,
+        company: data.user?.metadata?.company_name
+      })
     } catch (err: any) {
-      console.error('[Profile] Error loading profile:', err)
-      setError('Failed to load profile. Please refresh the page.')
+      console.error('[Profile] ❌ Error loading profile:', err)
+      setError(`Failed to load profile: ${err.message}. Check console for details.`)
     } finally {
       setLoading(false)
     }
@@ -114,15 +108,16 @@ export default function ProfilePage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to save profile')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save profile')
       }
 
-      console.log('[Profile] Profile saved successfully')
+      console.log('[Profile] ✅ Profile saved successfully')
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err: any) {
-      console.error('[Profile] Error saving profile:', err)
-      setError('Failed to save profile. Please try again.')
+      console.error('[Profile] ❌ Error saving profile:', err)
+      setError(`Failed to save profile: ${err.message}`)
     } finally {
       setSaving(false)
     }
@@ -133,7 +128,7 @@ export default function ProfilePage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-dark mx-auto"></div>
-          <p className="mt-4 text-brand-gray">Loading profile...</p>
+          <p className="mt-4 text-brand-gray">Loading your profile...</p>
         </div>
       </div>
     )
@@ -148,7 +143,8 @@ export default function ProfilePage() {
 
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-600">{error}</p>
+          <p className="text-sm text-red-600 font-medium">⚠️ {error}</p>
+          <p className="text-xs text-red-500 mt-1">Open browser console (F12) for more details</p>
         </div>
       )}
 
@@ -167,6 +163,7 @@ export default function ProfilePage() {
                 onChange={(e) => setProfileInfo({ ...profileInfo, name: e.target.value })}
                 className="w-full px-3 py-2 border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-brand-green focus:border-brand-green"
                 required
+                placeholder="Your full name"
               />
             </div>
 
@@ -222,6 +219,31 @@ export default function ProfilePage() {
               />
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-brand-dark mb-1">
+                  Company
+                </label>
+                <input
+                  type="text"
+                  value={profileInfo.companyName}
+                  disabled
+                  className="w-full px-3 py-2 border border-brand-gray/30 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-brand-dark mb-1">
+                  Role
+                </label>
+                <input
+                  type="text"
+                  value={profileInfo.role}
+                  disabled
+                  className="w-full px-3 py-2 border border-brand-gray/30 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed capitalize"
+                />
+              </div>
+            </div>
+
             <div className="flex justify-between items-center pt-4">
               <div>
                 {saved && (
@@ -237,60 +259,6 @@ export default function ProfilePage() {
               </button>
             </div>
           </form>
-        </div>
-
-        {/* Emergency Contact */}
-        <div className="card mb-8">
-          <h2 className="text-xl font-bold text-brand-black mb-6">Emergency Contact</h2>
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-brand-dark mb-1">
-                Contact Name
-              </label>
-              <input
-                type="text"
-                value={profileInfo.emergencyContact}
-                onChange={(e) => setProfileInfo({ ...profileInfo, emergencyContact: e.target.value })}
-                placeholder="John Doe"
-                className="w-full px-3 py-2 border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-brand-green focus:border-brand-green"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-brand-dark mb-1">
-                Contact Phone
-              </label>
-              <input
-                type="tel"
-                value={profileInfo.emergencyPhone}
-                onChange={(e) => setProfileInfo({ ...profileInfo, emergencyPhone: e.target.value })}
-                placeholder="+1 (555) 987-6543"
-                className="w-full px-3 py-2 border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-brand-green focus:border-brand-green"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Coverage Information */}
-        <div className="card">
-          <h2 className="text-xl font-bold text-brand-black mb-4">Coverage Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-brand-gray">Coverage Status</p>
-              <p className="font-medium text-brand-green capitalize">{profileInfo.coverageStatus}</p>
-            </div>
-            <div>
-              <p className="text-sm text-brand-gray">Member Since</p>
-              <p className="font-medium text-brand-black">{profileInfo.memberSince}</p>
-            </div>
-            <div>
-              <p className="text-sm text-brand-gray">Employer</p>
-              <p className="font-medium text-brand-black">{profileInfo.companyName || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-brand-gray">Role</p>
-              <p className="font-medium text-brand-black capitalize">{profileInfo.role || 'Employee'}</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
