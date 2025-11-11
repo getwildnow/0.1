@@ -4,18 +4,11 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 
-interface Message {
-  from: 'user' | 'ai'
-  text: string
-}
-
 export default function EmployeeDashboard() {
   const router = useRouter()
   const [message, setMessage] = useState('')
-  const [agreed, setAgreed] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([])
-  const [verificationStatus, setVerificationStatus] = useState<string | null>(null)
-  const [isCheckingVerification, setIsCheckingVerification] = useState(true)
+  const [userName, setUserName] = useState('')
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -26,7 +19,6 @@ export default function EmployeeDashboard() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       )
 
-      // Simple auth check
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       
       if (authError || !user) {
@@ -36,14 +28,8 @@ export default function EmployeeDashboard() {
       }
 
       console.log('[Dashboard] ✅ User authenticated!')
-      console.log('[Dashboard] - UID:', user.id)
-      console.log('[Dashboard] - Email:', user.email)
-      console.log('[Dashboard] - Name:', user.user_metadata?.name)
-      console.log('[Dashboard] - Company:', user.user_metadata?.company_name)
-      console.log('[Dashboard] - Role:', user.user_metadata?.role)
-
-      // All data is in auth.users - no need to fetch from employees table!
-      setIsCheckingVerification(false)
+      setUserName(user.user_metadata?.name || user.email?.split('@')[0] || 'User')
+      setIsCheckingAuth(false)
     }
 
     checkAuth()
@@ -51,113 +37,109 @@ export default function EmployeeDashboard() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!message.trim() || !agreed) return
-
-    const newUserMessage: Message = { from: 'user', text: message }
+    if (!message.trim()) return
     
-    setMessages(prev => [
-      ...prev, 
-      newUserMessage,
-      { from: 'ai', text: "I'm really sorry you're not feeling well. Could you tell me a bit more about what specific symptoms you're experiencing or what feels different from your usual health? This will help me guide you to the right expert as quickly as possible." }
-    ]);
-    
+    // Handle message submission
+    console.log('Message:', message)
     setMessage('')
   }
 
-  // Show loading while checking authentication
-  if (isCheckingVerification) {
+  if (isCheckingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F9F9F9]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-dark mx-auto"></div>
-          <p className="mt-4 text-brand-gray text-lg">Verifying...</p>
+          <p className="mt-4 text-brand-gray text-lg">Loading...</p>
         </div>
       </div>
     )
   }
 
-  // If verification is approved, show the actual dashboard
   return (
-    <div className="flex h-full flex-col bg-[#F9F9F9]">
-      <div className="flex-1 overflow-y-auto p-8">
-        <div className="max-w-3xl mx-auto w-full">
-          {messages.length === 0 ? (
-            <div className="text-center">
-              <div className="flex items-center justify-center space-x-2 mb-4">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center border-2 border-brand-dark/10">
-                  <span className="text-2xl font-semibold">AI</span>
-                </div>
-              </div>
-              <h1 className="text-4xl font-semibold text-brand-black">
-                Hi, I'm your AI Doctor
-              </h1>
-              <p className="mt-4 text-brand-gray max-w-md mx-auto">
-                I'm your private and personal AI doctor. My service is fast and free. What can I help you with today?
-              </p>
-            </div>
-          ) : (
-            <>
-              <p className="text-center text-sm text-brand-gray mb-8">
-                If this is an emergency, call 911 or your local emergency number.
-              </p>
-              <div className="space-y-6">
-                {messages.map((msg, index) => (
-                  <div key={index} className={`flex ${msg.from === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    {msg.from === 'user' ? (
-                      <div className="bg-brand-green text-white rounded-2xl rounded-br-none max-w-md p-4">
-                        <p>{msg.text}</p>
-                      </div>
-                    ) : (
-                      <div className="text-brand-dark max-w-md">
-                        <p>{msg.text}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+    <div className="flex h-screen bg-[#F5F4F0]">
+      {/* Sidebar */}
+      <div className="w-[270px] bg-[#2C2D2A] flex flex-col">
+        {/* Logo */}
+        <div className="p-8">
+          <h1 className="text-white text-2xl font-bold">Get wild.</h1>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-4">
+          <button
+            className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg bg-[#3A3B38] text-white mb-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <span>AI Chat</span>
+          </button>
+
+          <button
+            onClick={() => router.push('/employee/dashboard/profile')}
+            className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-[#A8A8A8] hover:bg-[#3A3B38] hover:text-white transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <span>Profile</span>
+          </button>
+        </nav>
+
+        {/* Sign Out Button */}
+        <div className="p-4">
+          <button
+            onClick={async () => {
+              const supabase = createBrowserClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+              )
+              await supabase.auth.signOut()
+              router.push('/employee/login')
+            }}
+            className="w-full px-4 py-3 rounded-lg bg-white text-[#2C2D2A] font-medium hover:bg-gray-100 transition-colors"
+          >
+            Sign Out
+          </button>
         </div>
       </div>
 
-      <div className="p-6 sm:p-8 bg-brand-cream border-t border-brand-gray/10">
-        <div className="max-w-3xl mx-auto">
-          <form
-            onSubmit={handleSubmit}
-          >
-            <div className="bg-white rounded-xl border border-brand-gray/20 p-4">
-              <div className="flex items-center mb-2">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Header - Hidden on mobile, can add hamburger menu later */}
+        <div className="h-16"></div>
+
+        {/* Content Area */}
+        <div className="flex-1 flex items-center justify-center px-8">
+          <div className="w-full max-w-2xl">
+            {/* AI Doctor Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-5xl font-bold text-[#11120D] mb-4">AI Doctor</h1>
+              <p className="text-lg text-[#5C5C5C]">Everything about your health in one place.</p>
+            </div>
+
+            {/* Chat Input Card */}
+            <div className="bg-white rounded-2xl shadow-sm p-6">
+              <form onSubmit={handleSubmit}>
                 <input
-                  id="terms"
-                  type="checkbox"
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                  className="h-4 w-4 rounded border-brand-gray/30 text-brand-green focus:ring-brand-green"
-                />
-                <label htmlFor="terms" className="ml-2 text-xs text-brand-gray">
-                  I agree to the Get Wild Terms of Service.
-                </label>
-              </div>
-              <div className="relative">
-                <textarea
+                  type="text"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Reply to your AI Doctor..."
-                  className="w-full border-none resize-none focus:outline-none focus:ring-0 placeholder-brand-gray"
-                  rows={2}
+                  placeholder="When is the next time I should visit the doctor?"
+                  className="w-full text-base text-[#11120D] placeholder-[#A8A8A8] bg-transparent border-none focus:outline-none mb-4"
                 />
-                <button
-                  type="submit"
-                  disabled={!agreed || !message}
-                  className="absolute right-0 bottom-0 bg-brand-green text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-brand-green/90 disabled:bg-brand-gray/50 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                  </svg>
-                </button>
-              </div>
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 bg-[#1B1D1A] text-white rounded-full text-sm font-medium hover:bg-[#2C2D2A] transition-colors flex items-center space-x-2"
+                  >
+                    <span>Start Chat</span>
+                    <span className="w-2 h-2 bg-white rounded-full"></span>
+                  </button>
+                </div>
+              </form>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>
