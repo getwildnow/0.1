@@ -1,21 +1,59 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  HeartIcon,
-  MoonIcon,
-  ExclamationTriangleIcon,
-  ChartBarIcon,
-  CurrencyDollarIcon,
-} from '@heroicons/react/24/outline';
 
-// Mock data - in production this would come from your database
-const healthMetrics = {
-  sickEmployees: 3,
-  totalEmployees: 24,
-  averageSleep: 7.2, // hours
-  sleepQuality: 'Good',
-};
+// Mock health data over time (last 30 days)
+const healthTrendData = [
+  { day: 1, score: 82 },
+  { day: 2, score: 83 },
+  { day: 3, score: 81 },
+  { day: 4, score: 84 },
+  { day: 5, score: 85 },
+  { day: 6, score: 83 },
+  { day: 7, score: 86 },
+  { day: 8, score: 87 },
+  { day: 9, score: 85 },
+  { day: 10, score: 88 },
+  { day: 11, score: 86 },
+  { day: 12, score: 87 },
+  { day: 13, score: 89 },
+  { day: 14, score: 88 },
+  { day: 15, score: 87 },
+  { day: 16, score: 90 },
+  { day: 17, score: 89 },
+  { day: 18, score: 88 },
+  { day: 19, score: 91 },
+  { day: 20, score: 89 },
+  { day: 21, score: 90 },
+  { day: 22, score: 88 },
+  { day: 23, score: 89 },
+  { day: 24, score: 87 },
+  { day: 25, score: 88 },
+  { day: 26, score: 86 },
+  { day: 27, score: 87 },
+  { day: 28, score: 85 },
+  { day: 29, score: 86 },
+  { day: 30, score: 87 },
+];
+
+// Focus heatmap data (6 AM - 8 PM)
+const focusHeatmapData = [
+  { hour: '6:00', mon: 44, tue: 38, wed: 32, thu: 17, fri: 34, sat: 26, sun: 42 },
+  { hour: '7:00', mon: 45, tue: 33, wed: 31, thu: 28, fri: 34, sat: 33, sun: 35 },
+  { hour: '8:00', mon: 58, tue: 40, wed: 40, thu: 47, fri: 45, sat: 36, sun: 52 },
+  { hour: '9:00', mon: 58, tue: 49, wed: 52, thu: 52, fri: 53, sat: 64, sun: 56 },
+  { hour: '10:00', mon: 74, tue: 76, wed: 70, thu: 70, fri: 63, sat: 59, sun: 63 },
+  { hour: '11:00', mon: 81, tue: 83, wed: 78, thu: 68, fri: 76, sat: 80, sun: 76 },
+  { hour: '12:00', mon: 89, tue: 78, wed: 78, thu: 65, fri: 81, sat: 81, sun: 86 },
+  { hour: '13:00', mon: 85, tue: 78, wed: 82, thu: 77, fri: 65, sat: 67, sun: 71 },
+  { hour: '14:00', mon: 76, tue: 72, wed: 73, thu: 57, fri: 69, sat: 63, sun: 70 },
+  { hour: '15:00', mon: 70, tue: 53, wed: 61, thu: 63, fri: 55, sat: 48, sun: 70 },
+  { hour: '16:00', mon: 58, tue: 51, wed: 39, thu: 36, fri: 39, sat: 50, sun: 44 },
+  { hour: '17:00', mon: 51, tue: 31, wed: 37, thu: 23, fri: 23, sat: 35, sun: 48 },
+  { hour: '18:00', mon: 32, tue: 33, wed: 31, thu: 33, fri: 21, sat: 32, sun: 41 },
+  { hour: '19:00', mon: 41, tue: 36, wed: 24, thu: 32, fri: 25, sat: 24, sun: 43 },
+  { hour: '20:00', mon: 45, tue: 41, wed: 37, thu: 38, fri: 38, sat: 38, sun: 44 },
+];
 
 const claimsData = {
   '30days': {
@@ -80,11 +118,47 @@ const claimsData = {
   },
 };
 
+// Helper function to get color based on focus percentage
+const getFocusColor = (value: number) => {
+  if (value >= 80) return '#C6E377'; // High focus - brand green
+  if (value >= 70) return '#D4EA8A';
+  if (value >= 60) return '#E2F19D';
+  if (value >= 50) return '#F0F8B0';
+  if (value >= 40) return '#FFF4C3';
+  if (value >= 30) return '#FFE8A3';
+  if (value >= 20) return '#FFDC83';
+  return '#FFD063'; // Low focus - brand yellow
+};
+
 export default function StatsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<'30days' | '6months' | '1year' | '5years'>('30days');
 
   const currentData = claimsData[selectedPeriod];
   const claimCount = currentData.claims.length;
+
+  // Calculate SVG path for smooth curve
+  const width = 800;
+  const height = 200;
+  const padding = 40;
+  const maxScore = 100;
+  const minScore = 70;
+
+  const xScale = (index: number) => padding + (index / (healthTrendData.length - 1)) * (width - 2 * padding);
+  const yScale = (score: number) => height - padding - ((score - minScore) / (maxScore - minScore)) * (height - 2 * padding);
+
+  // Create smooth curve path using quadratic bezier curves
+  let pathD = `M ${xScale(0)} ${yScale(healthTrendData[0].score)}`;
+  for (let i = 0; i < healthTrendData.length - 1; i++) {
+    const x1 = xScale(i);
+    const y1 = yScale(healthTrendData[i].score);
+    const x2 = xScale(i + 1);
+    const y2 = yScale(healthTrendData[i + 1].score);
+    const cx = (x1 + x2) / 2;
+    pathD += ` Q ${cx} ${y1}, ${x2} ${y2}`;
+  }
+
+  // Create area fill path
+  const areaPathD = pathD + ` L ${xScale(healthTrendData.length - 1)} ${height - padding} L ${xScale(0)} ${height - padding} Z`;
 
   return (
     <div className="p-8 bg-brand-cream min-h-screen text-brand-black">
@@ -95,76 +169,172 @@ export default function StatsPage() {
         </p>
       </header>
 
-      {/* Health Metrics */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
-        <div className="bg-white p-6 rounded-lg border border-brand-gray/20">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <ExclamationTriangleIcon className="h-6 w-6 text-orange-500" aria-hidden="true" />
-            </div>
-            <div className="ml-5 w-0 flex-1">
-              <dl>
-                <dt className="text-sm font-medium text-brand-gray truncate">Currently Sick</dt>
-                <dd className="flex items-baseline">
-                  <p className="text-2xl font-semibold text-brand-darkest">{healthMetrics.sickEmployees}</p>
-                  <p className="ml-2 text-sm text-brand-gray">
-                    of {healthMetrics.totalEmployees} employees
-                  </p>
-                </dd>
-              </dl>
-            </div>
-          </div>
+      {/* Health Trend Curve */}
+      <div className="bg-white p-8 rounded-2xl border border-brand-gray/20 mb-8">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-brand-darkest mb-1">Team Health Trend</h2>
+          <p className="text-sm text-brand-gray">30-day rolling average health score</p>
+        </div>
+        
+        <div className="relative">
+          <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
+            {/* Grid lines */}
+            {[80, 85, 90, 95].map((score) => (
+              <g key={score}>
+                <line
+                  x1={padding}
+                  y1={yScale(score)}
+                  x2={width - padding}
+                  y2={yScale(score)}
+                  stroke="#E5E5E5"
+                  strokeWidth="1"
+                  strokeDasharray="4 4"
+                />
+                <text
+                  x={padding - 10}
+                  y={yScale(score) + 4}
+                  textAnchor="end"
+                  fontSize="12"
+                  fill="#A8A8A8"
+                >
+                  {score}%
+                </text>
+              </g>
+            ))}
+
+            {/* Area fill with gradient */}
+            <defs>
+              <linearGradient id="healthGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#C6E377" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#C6E377" stopOpacity="0.05" />
+              </linearGradient>
+            </defs>
+            <path
+              d={areaPathD}
+              fill="url(#healthGradient)"
+            />
+
+            {/* Main curve line */}
+            <path
+              d={pathD}
+              fill="none"
+              stroke="#C6E377"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+
+            {/* Data points */}
+            {healthTrendData.map((point, index) => (
+              <circle
+                key={point.day}
+                cx={xScale(index)}
+                cy={yScale(point.score)}
+                r="4"
+                fill="#C6E377"
+                stroke="white"
+                strokeWidth="2"
+                className="hover:r-6 transition-all cursor-pointer"
+              />
+            ))}
+
+            {/* X-axis labels */}
+            {[0, 7, 14, 21, 29].map((day) => (
+              <text
+                key={day}
+                x={xScale(day)}
+                y={height - padding + 20}
+                textAnchor="middle"
+                fontSize="12"
+                fill="#A8A8A8"
+              >
+                Day {day + 1}
+              </text>
+            ))}
+          </svg>
         </div>
 
-        <div className="bg-white p-6 rounded-lg border border-brand-gray/20">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <MoonIcon className="h-6 w-6 text-indigo-500" aria-hidden="true" />
-            </div>
-            <div className="ml-5 w-0 flex-1">
-              <dl>
-                <dt className="text-sm font-medium text-brand-gray truncate">Average Sleep</dt>
-                <dd className="flex items-baseline">
-                  <p className="text-2xl font-semibold text-brand-darkest">{healthMetrics.averageSleep}h</p>
-                  <p className="ml-2 text-sm text-brand-gray">
-                    per night
-                  </p>
-                </dd>
-                <dd className="mt-1">
-                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
-                    {healthMetrics.sleepQuality}
-                  </span>
-                </dd>
-              </dl>
-            </div>
+        {/* Current stats */}
+        <div className="grid grid-cols-3 gap-4 mt-8 pt-6 border-t border-brand-gray/10">
+          <div>
+            <p className="text-sm text-brand-gray mb-1">Current Score</p>
+            <p className="text-3xl font-bold text-brand-darkest">87%</p>
           </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg border border-brand-gray/20">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <HeartIcon className="h-6 w-6 text-red-500" aria-hidden="true" />
-            </div>
-            <div className="ml-5 w-0 flex-1">
-              <dl>
-                <dt className="text-sm font-medium text-brand-gray truncate">Team Health Score</dt>
-                <dd className="flex items-baseline">
-                  <p className="text-2xl font-semibold text-brand-darkest">87%</p>
-                  <p className="ml-2 flex items-baseline text-sm font-semibold text-green-600">
-                    +2%
-                  </p>
-                </dd>
-                <dd className="mt-1 text-xs text-brand-gray">
-                  vs last month
-                </dd>
-              </dl>
-            </div>
+          <div>
+            <p className="text-sm text-brand-gray mb-1">Average Sleep</p>
+            <p className="text-3xl font-bold text-brand-darkest">7.2h</p>
+          </div>
+          <div>
+            <p className="text-sm text-brand-gray mb-1">Currently Sick</p>
+            <p className="text-3xl font-bold text-brand-darkest">3</p>
+            <p className="text-xs text-brand-gray">of 24 employees</p>
           </div>
         </div>
       </div>
 
+      {/* Focus Heatmap - Compact Version */}
+      <div className="bg-white p-8 rounded-2xl border border-brand-gray/20 mb-8">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-brand-darkest mb-1">Company Focus Heatmap</h2>
+          <p className="text-sm text-brand-gray">Peak productivity hours (6 AM – 8 PM)</p>
+        </div>
+
+        {/* Legend */}
+        <div className="flex items-center gap-3 mb-4">
+          <span className="text-xs text-brand-gray">Low</span>
+          <div className="flex gap-1">
+            {[20, 30, 40, 50, 60, 70, 80, 90].map((val) => (
+              <div
+                key={val}
+                className="w-6 h-4 rounded-sm"
+                style={{ backgroundColor: getFocusColor(val) }}
+              />
+            ))}
+          </div>
+          <span className="text-xs text-brand-gray">High</span>
+        </div>
+
+        {/* Heatmap Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="text-left text-xs font-medium text-brand-gray py-2 px-2 w-16">Hour</th>
+                <th className="text-center text-xs font-medium text-brand-gray py-2 px-2">Mon</th>
+                <th className="text-center text-xs font-medium text-brand-gray py-2 px-2">Tue</th>
+                <th className="text-center text-xs font-medium text-brand-gray py-2 px-2">Wed</th>
+                <th className="text-center text-xs font-medium text-brand-gray py-2 px-2">Thu</th>
+                <th className="text-center text-xs font-medium text-brand-gray py-2 px-2">Fri</th>
+                <th className="text-center text-xs font-medium text-brand-gray py-2 px-2">Sat</th>
+                <th className="text-center text-xs font-medium text-brand-gray py-2 px-2">Sun</th>
+              </tr>
+            </thead>
+            <tbody>
+              {focusHeatmapData.map((row) => (
+                <tr key={row.hour}>
+                  <td className="text-xs text-brand-gray py-1 px-2">{row.hour}</td>
+                  {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day) => {
+                    const value = row[day as keyof typeof row] as number;
+                    return (
+                      <td key={day} className="p-1">
+                        <div
+                          className="rounded text-center py-2 text-xs font-medium text-brand-darkest"
+                          style={{ backgroundColor: getFocusColor(value) }}
+                        >
+                          {value}%
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Claims Analytics */}
-      <div className="bg-white p-6 rounded-lg border border-brand-gray/20">
+      <div className="bg-white p-8 rounded-2xl border border-brand-gray/20">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-brand-darkest mb-4">Claims Overview</h2>
           
@@ -215,24 +385,14 @@ export default function StatsPage() {
           {/* Summary Cards */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-6">
             <div className="bg-brand-cream p-4 rounded-lg border border-brand-gray/10">
-              <div className="flex items-center">
-                <ChartBarIcon className="h-5 w-5 text-brand-gray mr-3" />
-                <div>
-                  <p className="text-sm text-brand-gray">Total Claims</p>
-                  <p className="text-2xl font-semibold text-brand-darkest">{claimCount}</p>
-                </div>
-              </div>
+              <p className="text-sm text-brand-gray mb-1">Total Claims</p>
+              <p className="text-3xl font-semibold text-brand-darkest">{claimCount}</p>
             </div>
             <div className="bg-brand-cream p-4 rounded-lg border border-brand-gray/10">
-              <div className="flex items-center">
-                <CurrencyDollarIcon className="h-5 w-5 text-brand-gray mr-3" />
-                <div>
-                  <p className="text-sm text-brand-gray">Total Cost</p>
-                  <p className="text-2xl font-semibold text-brand-darkest">
-                    ${currentData.total.toLocaleString()}
-                  </p>
-                </div>
-              </div>
+              <p className="text-sm text-brand-gray mb-1">Total Cost</p>
+              <p className="text-3xl font-semibold text-brand-darkest">
+                ${currentData.total.toLocaleString()}
+              </p>
             </div>
           </div>
         </div>
@@ -241,14 +401,14 @@ export default function StatsPage() {
         <div className="mb-6">
           <h3 className="text-sm font-medium text-brand-dark mb-3">Claims Distribution</h3>
           <div className="space-y-2">
-            {currentData.claims.slice(0, 10).map((claim, index) => {
+            {currentData.claims.slice(0, 10).map((claim) => {
               const percentage = (claim.amount / currentData.total) * 100;
               return (
                 <div key={claim.id} className="flex items-center gap-3">
                   <div className="w-32 text-xs text-brand-gray truncate">{claim.employee}</div>
                   <div className="flex-1 bg-brand-cream rounded-full h-6 relative overflow-hidden">
                     <div
-                      className="bg-brand-green h-full rounded-full transition-all duration-500"
+                      className="bg-brand-darkest h-full rounded-full transition-all duration-500"
                       style={{ width: `${percentage}%` }}
                     />
                     <span className="absolute inset-0 flex items-center justify-end pr-2 text-xs font-medium text-brand-dark">
@@ -317,4 +477,3 @@ export default function StatsPage() {
     </div>
   );
 }
-
