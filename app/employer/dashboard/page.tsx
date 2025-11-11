@@ -3,13 +3,7 @@
 import { useState } from 'react';
 import Papa from 'papaparse';
 import {
-  ArrowDownTrayIcon,
-  ArrowUpTrayIcon,
-  BuildingOfficeIcon,
-  CheckCircleIcon,
   ChevronDownIcon,
-  ChevronRightIcon,
-  CubeTransparentIcon,
   PlusIcon,
   UserGroupIcon,
   CurrencyDollarIcon,
@@ -21,29 +15,18 @@ const kpis = [
     name: 'Total Employees',
     value: '75',
     icon: UserGroupIcon,
-    change: '',
-    changeType: 'neutral',
-  },
-  {
-    name: 'Active Wearables',
-    value: '70',
-    icon: CubeTransparentIcon,
-    change: '',
-    changeType: 'neutral',
   },
   {
     name: 'Monthly Premium',
     value: '$56,250',
     icon: CurrencyDollarIcon,
-    change: 'for November',
-    changeType: 'neutral',
+    subtitle: 'for November',
   },
   {
     name: 'Recent Claims',
     value: '3',
     icon: DocumentTextIcon,
-    change: 'in last 30 days',
-    changeType: 'neutral',
+    subtitle: 'in last 30 days',
   },
 ];
 
@@ -280,8 +263,8 @@ export default function EmployerDashboard() {
         </p>
       </header>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+      {/* KPIs - Only Most Important */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 mb-8">
         {kpis.map((kpi) => (
           <div key={kpi.name} className="bg-white p-6 rounded-lg border border-brand-gray/20">
             <div className="flex items-center">
@@ -293,9 +276,9 @@ export default function EmployerDashboard() {
                   <dt className="text-sm font-medium text-brand-gray truncate">{kpi.name}</dt>
                   <dd className="flex flex-col">
                     <p className="text-2xl font-semibold text-brand-darkest">{kpi.value}</p>
-                    {kpi.change && (
+                    {kpi.subtitle && (
                       <p className="text-xs text-brand-gray mt-0.5">
-                        {kpi.change}
+                        {kpi.subtitle}
                       </p>
                     )}
                   </dd>

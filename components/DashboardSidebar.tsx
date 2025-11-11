@@ -55,10 +55,16 @@ export function DashboardSidebar({ links, isCollapsed, toggleSidebar }: Dashboar
         })}
       </nav>
       <div className="mt-auto">
-        <button className={`
-          w-full flex items-center gap-x-4 px-4 py-2.5 rounded-lg text-sm font-medium text-brand-gray text-left hover:bg-brand-dark hover:text-brand-cream
-          ${isCollapsed ? 'justify-center' : ''}
-        `}>
+        <button 
+          onClick={() => {
+            localStorage.removeItem('employer_auth')
+            window.location.href = '/employer/dashboard/login'
+          }}
+          className={`
+            w-full flex items-center gap-x-4 px-4 py-2.5 rounded-lg text-sm font-medium text-brand-gray text-left hover:bg-brand-dark hover:text-brand-cream transition-colors
+            ${isCollapsed ? 'justify-center' : ''}
+          `}
+        >
           <LogoutIcon />
           <span className={`${isCollapsed ? 'hidden' : 'block'}`}>Logout</span>
         </button>
