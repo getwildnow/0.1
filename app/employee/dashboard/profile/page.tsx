@@ -6,8 +6,6 @@ interface ProfileData {
   name: string
   email: string
   phone: string
-  dateOfBirth: string
-  address: string
   role: string
   companyName: string
 }
@@ -17,8 +15,6 @@ export default function ProfilePage() {
     name: '',
     email: '',
     phone: '',
-    dateOfBirth: '',
-    address: '',
     role: '',
     companyName: ''
   })
@@ -64,15 +60,10 @@ export default function ProfilePage() {
         .filter(Boolean)
         .join(' ') || data.user?.metadata?.name || ''
 
-      // Format date for input (YYYY-MM-DD)
-      const dateOfBirth = data.employee?.date_of_birth || ''
-
       setProfileInfo({
         name: fullName,
         email: data.user?.email || '',
         phone: data.employee?.phone || '',
-        dateOfBirth: dateOfBirth,
-        address: data.employee?.address || '',
         role: data.user?.metadata?.role || data.employee?.role || '',
         companyName: data.user?.metadata?.company_name || ''
       })
@@ -150,7 +141,7 @@ export default function ProfilePage() {
 
       <div className="max-w-3xl">
         {/* Personal Information */}
-        <div className="card mb-8">
+        <div className="card">
           <h2 className="text-xl font-bold text-brand-black mb-6">Personal Information</h2>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -192,31 +183,6 @@ export default function ProfilePage() {
                   className="w-full px-3 py-2 border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-brand-green focus:border-brand-green"
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-brand-dark mb-1">
-                Date of Birth
-              </label>
-              <input
-                type="date"
-                value={profileInfo.dateOfBirth}
-                onChange={(e) => setProfileInfo({ ...profileInfo, dateOfBirth: e.target.value })}
-                className="w-full px-3 py-2 border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-brand-green focus:border-brand-green"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-brand-dark mb-1">
-                Address
-              </label>
-              <textarea
-                value={profileInfo.address}
-                onChange={(e) => setProfileInfo({ ...profileInfo, address: e.target.value })}
-                rows={2}
-                placeholder="123 Main St, San Francisco, CA 94105"
-                className="w-full px-3 py-2 border border-brand-gray/30 rounded-lg focus:outline-none focus:ring-brand-green focus:border-brand-green"
-              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
